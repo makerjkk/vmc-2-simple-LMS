@@ -6,6 +6,7 @@ import {
   SubmissionsForGradingResponseSchema,
   type SubmissionsForGradingResponse 
 } from '../../lib/dto';
+import { MAX_PAGE_SIZE } from '@/constants/pagination';
 
 /**
  * 채점용 제출물 목록 조회 쿼리 훅
@@ -82,7 +83,7 @@ export const useGradingStats = (assignmentId: string) => {
     
     queryFn: async () => {
       const response = await apiClient.get(
-        `/api/instructor/assignments/${assignmentId}/submissions/grading?limit=1000`
+        `/api/instructor/assignments/${assignmentId}/submissions/grading?limit=${MAX_PAGE_SIZE}`
       );
 
       const parsedResponse = SubmissionsForGradingResponseSchema.safeParse(response.data.data);

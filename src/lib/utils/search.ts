@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { DEFAULT_PAGE_SIZE } from '@/constants/pagination';
 
 // 코스 필터 타입 정의
 export interface CourseFilters {
@@ -95,7 +96,7 @@ export const buildSortQuery = (
 export const buildPaginationQuery = (
   query: any,
   page: number = 1,
-  limit: number = 20
+  limit: number = DEFAULT_PAGE_SIZE
 ) => {
   const offset = (page - 1) * limit;
   return query.range(offset, offset + limit - 1);
@@ -110,7 +111,7 @@ export const buildCoursesQuery = (
   filters?: CourseFilters,
   sortBy: SortOption = 'latest',
   page: number = 1,
-  limit: number = 20
+  limit: number = DEFAULT_PAGE_SIZE
 ) => {
   let query = client
     .from('courses')

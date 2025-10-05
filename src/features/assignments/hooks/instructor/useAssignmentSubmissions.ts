@@ -7,6 +7,7 @@ import {
   type AssignmentSubmissionsResponse,
   type AssignmentSubmissionsQuery 
 } from '../../lib/dto';
+import { DEFAULT_PAGE_NUMBER, DEFAULT_PAGE_SIZE, SMALL_PAGE_SIZE, SINGLE_ITEM_LIMIT } from '@/constants/pagination';
 
 /**
  * 강사용 제출물 목록 조회 쿼리 훅
@@ -16,7 +17,7 @@ export const useAssignmentSubmissions = (
   assignmentId: string,
   params: Omit<AssignmentSubmissionsQuery, 'assignmentId'> = {}
 ) => {
-  const { status, isLate, page = 1, limit = 20 } = params;
+  const { status, isLate, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
   return useQuery({
     queryKey: ['assignment-submissions', assignmentId, { status, isLate, page, limit }],
@@ -79,7 +80,7 @@ export const useAssignmentSubmissionStats = (assignmentId: string) => {
     queryFn: async () => {
       // 첫 페이지만 조회하여 통계 정보 획득
       const response = await apiClient.get(
-        `/api/instructor/assignments/${assignmentId}/submissions?page=1&limit=1`
+        `/api/instructor/assignments/${assignmentId}/submissions?page=${DEFAULT_PAGE_NUMBER}&limit=${SINGLE_ITEM_LIMIT}`
       );
 
       const parsedResponse = AssignmentSubmissionsResponseSchema.safeParse(response.data.data);
@@ -114,7 +115,7 @@ export const usePendingGradingSubmissions = (
   assignmentId: string,
   options: { page?: number; limit?: number } = {}
 ) => {
-  const { page = 1, limit = 10 } = options;
+  const { page = DEFAULT_PAGE_NUMBER, limit = SMALL_PAGE_SIZE } = options;
 
   return useQuery({
     queryKey: ['pending-grading-submissions', assignmentId, { page, limit }],

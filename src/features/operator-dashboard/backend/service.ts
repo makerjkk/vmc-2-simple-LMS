@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { success, failure, type HandlerResult } from '@/backend/http/response';
+import { SMALL_PAGE_SIZE } from '@/constants/pagination';
 import {
   operatorDashboardErrorCodes,
   type OperatorDashboardServiceError,
@@ -202,7 +203,7 @@ const getActivityStats = async (supabase: SupabaseClient) => {
  */
 export const getRecentReports = async (
   supabase: SupabaseClient,
-  limit: number = 10
+  limit: number = SMALL_PAGE_SIZE
 ): Promise<HandlerResult<RecentReportsResponse, OperatorDashboardServiceError>> => {
   try {
     const { data: reports, error } = await supabase

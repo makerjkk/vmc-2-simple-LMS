@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/remote/api-client';
 import type { AssignmentLogsResponse, AssignmentLogsQuery } from '../../lib/logs-dto';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 
 /**
  * Assignment 상태 변경 로그 조회 훅
@@ -42,7 +43,7 @@ export const useInstructorAssignmentLogs = (params: {
   page?: number;
   limit?: number;
 }) => {
-  const { instructorId, assignmentId, changeReason, page = 1, limit = 20 } = params;
+  const { instructorId, assignmentId, changeReason, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
   return useQuery({
     queryKey: ['instructor-assignment-logs', instructorId, assignmentId, changeReason, page, limit],

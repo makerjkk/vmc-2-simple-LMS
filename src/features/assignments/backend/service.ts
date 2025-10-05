@@ -4,6 +4,7 @@ import {
   success,
   type HandlerResult,
 } from '@/backend/http/response';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 import { createAssignmentLog } from './logs-service';
 import {
   type AssignmentDetailResponse,
@@ -25,6 +26,10 @@ import {
   type AssignmentSubmissionsQuery,
   type AssignmentSubmissionsResponse,
   type SubmissionDetailResponse,
+  // 학습자용 스키마 추가
+  type LearnerAssignmentsQuery,
+  type LearnerAssignmentsResponse,
+  type LearnerAssignmentResponse,
   CreateAssignmentRequestSchema,
   UpdateAssignmentRequestSchema,
   AssignmentStatusUpdateSchema,
@@ -975,7 +980,7 @@ export const getInstructorAssignments = async (
   params: InstructorAssignmentsQuery
 ): Promise<HandlerResult<InstructorAssignmentsResponse, string, unknown>> => {
   try {
-    const { courseId, status, page = 1, limit = 20 } = params;
+    const { courseId, status, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
     // 1. Auth ID를 내부 사용자 ID로 변환
     const { data: userData, error: userError } = await client
@@ -1121,7 +1126,7 @@ export const getAssignmentSubmissions = async (
   params: AssignmentSubmissionsQuery
 ): Promise<HandlerResult<AssignmentSubmissionsResponse, string, unknown>> => {
   try {
-    const { status, isLate, page = 1, limit = 20 } = params;
+    const { status, isLate, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
     // 1. 과제 존재 여부 및 소유권 검증
     const { data: assignmentData, error: assignmentError } = await client
@@ -1436,7 +1441,7 @@ export const getSubmissionsForGrading = async (
   } = {}
 ): Promise<HandlerResult<SubmissionsForGradingResponse, string, unknown>> => {
   try {
-    const { status, isLate, page = 1, limit = 20 } = params;
+    const { status, isLate, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
     const offset = (page - 1) * limit;
 
     // 1. 과제 존재 여부 및 권한 검증
@@ -1657,7 +1662,7 @@ export const getLearnerAssignments = async (
   params: LearnerAssignmentsQuery
 ): Promise<HandlerResult<LearnerAssignmentsResponse, string, unknown>> => {
   try {
-    const { status = 'all', courseId, page = 1, limit = 20 } = params;
+    const { status = 'all', courseId, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
     // 1. Auth ID를 내부 사용자 ID로 변환
     const { data: userData, error: userError } = await client

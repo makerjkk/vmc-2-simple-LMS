@@ -7,6 +7,7 @@ import {
   type InstructorAssignmentsResponse,
   type InstructorAssignmentsQuery 
 } from '../../lib/dto';
+import { DEFAULT_PAGE_NUMBER, DEFAULT_PAGE_SIZE, SINGLE_ITEM_LIMIT } from '@/constants/pagination';
 
 /**
  * 강사용 과제 목록 조회 쿼리 훅
@@ -16,7 +17,7 @@ export const useInstructorAssignments = (
   courseId: string,
   params: Omit<InstructorAssignmentsQuery, 'courseId'> = {}
 ) => {
-  const { status, page = 1, limit = 20 } = params;
+  const { status, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
   return useQuery({
     queryKey: ['instructor-assignments', courseId, { status, page, limit }],
@@ -77,9 +78,9 @@ export const useInstructorAssignmentCounts = (courseId: string) => {
     queryFn: async () => {
       // 각 상태별로 첫 페이지만 조회하여 총 개수 확인
       const [draftResponse, publishedResponse, closedResponse] = await Promise.all([
-        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=draft&page=1&limit=1`),
-        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=published&page=1&limit=1`),
-        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=closed&page=1&limit=1`)
+        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=draft&page=${DEFAULT_PAGE_NUMBER}&limit=${SINGLE_ITEM_LIMIT}`),
+        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=published&page=${DEFAULT_PAGE_NUMBER}&limit=${SINGLE_ITEM_LIMIT}`),
+        apiClient.get(`/api/instructor/courses/${courseId}/assignments?status=closed&page=${DEFAULT_PAGE_NUMBER}&limit=${SINGLE_ITEM_LIMIT}`)
       ]);
 
       return {

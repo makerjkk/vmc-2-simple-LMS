@@ -4,6 +4,7 @@ import {
   success,
   type HandlerResult,
 } from '@/backend/http/response';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 import {
   buildCoursesQuery,
   type CourseFilters,
@@ -47,8 +48,8 @@ export const getCourses = async (
       category,
       difficulty,
       sortBy = 'latest',
-      page = 1,
-      limit = 20,
+      page = DEFAULT_PAGE_NUMBER,
+      limit = DEFAULT_PAGE_SIZE,
     } = params;
 
     // 필터 객체 구성
@@ -346,7 +347,7 @@ export const getInstructorCourses = async (
   params: InstructorCoursesQuery
 ): Promise<HandlerResult<InstructorCoursesResponse, CoursesServiceError, unknown>> => {
   try {
-    const { status, page = 1, limit = 20 } = params;
+    const { status, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
 
     // 전체 개수 조회 (페이지네이션용)
     let countQuery = client

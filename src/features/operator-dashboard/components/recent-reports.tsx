@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ReportStatusBadge } from '@/features/reports/components/report-status-badge';
 import { useRecentReportsQuery } from '../hooks/useRecentReportsQuery';
+import { SMALL_PAGE_SIZE } from '@/constants/pagination';
 
 interface RecentReportsProps {
   limit?: number;
@@ -18,7 +19,7 @@ interface RecentReportsProps {
 /**
  * 최근 신고 목록 컴포넌트
  */
-export const RecentReports = ({ limit = 10, onReportClick }: RecentReportsProps) => {
+export const RecentReports = ({ limit = SMALL_PAGE_SIZE, onReportClick }: RecentReportsProps) => {
   const { data, isLoading, error } = useRecentReportsQuery(limit);
 
   // 신고 타입 표시명 변환

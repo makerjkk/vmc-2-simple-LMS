@@ -96,8 +96,9 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       const result = await getLearnerAssignments(supabase, user.id, params);
 
       if (!result.ok) {
+        const errorResult = result as ErrorResult<string, unknown>;
         logger.error('Get learner assignments failed', {
-          error: result.error,
+          error: errorResult.error,
           userId: user.id,
           params,
         });

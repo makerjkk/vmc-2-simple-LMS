@@ -4,6 +4,7 @@ import {
   success,
   type HandlerResult,
 } from '@/backend/http/response';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 import {
   type GradesResponse,
   type CourseGrade,
@@ -387,7 +388,7 @@ export const getGradingHistory = async (
   } = {}
 ): Promise<HandlerResult<GradeLogsResponse, string, unknown>> => {
   try {
-    const { page = 1, limit = 20 } = params;
+    const { page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
     const offset = (page - 1) * limit;
 
     // 1. 제출물 존재 여부 확인
@@ -473,7 +474,7 @@ export const getInstructorGradingHistory = async (
   } = {}
 ): Promise<HandlerResult<GradeLogsResponse, string, unknown>> => {
   try {
-    const { courseId, assignmentId, action, page = 1, limit = 20 } = params;
+    const { courseId, assignmentId, action, page = DEFAULT_PAGE_NUMBER, limit = DEFAULT_PAGE_SIZE } = params;
     const offset = (page - 1) * limit;
 
     // 1. 강사 권한 확인

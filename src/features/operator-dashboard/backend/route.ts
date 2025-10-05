@@ -4,6 +4,7 @@ import {
   respond,
   type ErrorResult,
 } from '@/backend/http/response';
+import { SMALL_PAGE_SIZE } from '@/constants/pagination';
 import {
   getLogger,
   getSupabase,
@@ -85,7 +86,7 @@ export const registerOperatorDashboardRoutes = (app: Hono<AppEnv>) => {
     const logger = getLogger(c);
     
     try {
-      const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : 10;
+      const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!) : SMALL_PAGE_SIZE;
       
       if (isNaN(limit) || limit < 1 || limit > 50) {
         return respond(

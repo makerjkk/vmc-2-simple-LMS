@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { respond } from '@/backend/http/response';
 import type { AppEnv } from '@/backend/hono/context';
+import { DEFAULT_PAGE_SIZE } from '@/constants/pagination';
 import { contextKeys } from '@/backend/hono/context';
 import { 
   processAutoCloseAssignments, 
@@ -194,7 +195,7 @@ export const registerSchedulerRoutes = (app: Hono<AppEnv>) => {
       const assignmentId = c.req.param('assignmentId');
       const changeReason = c.req.query('changeReason') as 'manual' | 'auto_close' | 'system' | undefined;
       const page = parseInt(c.req.query('page') || '1');
-      const limit = parseInt(c.req.query('limit') || '20');
+      const limit = parseInt(c.req.query('limit') || DEFAULT_PAGE_SIZE.toString());
 
       if (!assignmentId) {
         return respond(c, {
@@ -251,7 +252,7 @@ export const registerSchedulerRoutes = (app: Hono<AppEnv>) => {
       const assignmentId = c.req.query('assignmentId');
       const changeReason = c.req.query('changeReason') as 'manual' | 'auto_close' | 'system' | undefined;
       const page = parseInt(c.req.query('page') || '1');
-      const limit = parseInt(c.req.query('limit') || '20');
+      const limit = parseInt(c.req.query('limit') || DEFAULT_PAGE_SIZE.toString());
 
       if (!instructorId) {
         return respond(c, {

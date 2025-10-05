@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/remote/api-client';
 import type { RecentReportsResponse } from '../lib/dto';
+import { SMALL_PAGE_SIZE } from '@/constants/pagination';
 
 /**
  * 최근 신고 목록 조회 훅
  */
-export const useRecentReportsQuery = (limit: number = 10) => {
+export const useRecentReportsQuery = (limit: number = SMALL_PAGE_SIZE) => {
   return useQuery({
     queryKey: ['operator', 'reports', 'recent', limit],
     queryFn: async (): Promise<RecentReportsResponse> => {
