@@ -31,6 +31,11 @@ export const CurrentUserProvider = ({
   const [snapshot, setSnapshot] = useState<CurrentUserSnapshot>(initialState);
 
   const refresh = useCallback(async () => {
+    // 이미 로딩 중이면 중복 실행 방지
+    if (snapshot.status === "loading") {
+      return;
+    }
+    
     setSnapshot((prev) => ({ status: "loading", user: prev.user }));
     const supabase = getSupabaseBrowserClient();
 
@@ -89,7 +94,7 @@ export const CurrentUserProvider = ({
       setSnapshot(fallbackSnapshot);
       queryClient.setQueryData(["currentUser"], fallbackSnapshot);
     }
-  }, [queryClient]);
+  }, [queryClient, snapshot.status]);
 
   const value = useMemo<CurrentUserContextValue>(() => {
     return {

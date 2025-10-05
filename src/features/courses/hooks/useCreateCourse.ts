@@ -26,11 +26,19 @@ export const useCreateCourse = () => {
       return parsedData.data;
     },
     onSuccess: (newCourse) => {
-      // 강사 코스 목록 캐시 무효화
+      // 강사 관련 모든 캐시 무효화 (대시보드에서 즉시 반영되도록)
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['instructor-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
       
       // 새로 생성된 코스를 캐시에 추가
       queryClient.setQueryData(['course', newCourse.id], newCourse);
+      
+      // 강제로 대시보드 데이터를 다시 가져오기 (즉시 반영 보장)
+      queryClient.refetchQueries({ 
+        queryKey: ['instructor-dashboard'],
+        type: 'active' 
+      });
     },
     onError: (error) => {
       console.error('코스 생성 중 오류 발생:', error);

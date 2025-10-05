@@ -28,13 +28,24 @@ import {
  */
 export const registerEnrollmentsRoutes = (app: Hono<AppEnv>) => {
   // POST /api/enrollments - 수강신청
-  app.post('/enrollments', async (c) => {
+  app.post('/api/enrollments', async (c) => {
     const logger = getLogger(c);
     
     try {
       // 사용자 인증 확인
       const supabase = getSupabase(c);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Authorization 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return respond(
+          c,
+          failure(401, enrollmentsErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (authError || !user) {
         return respond(
@@ -120,13 +131,24 @@ export const registerEnrollmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // DELETE /api/enrollments/:courseId - 수강취소
-  app.delete('/enrollments/:courseId', async (c) => {
+  app.delete('/api/enrollments/:courseId', async (c) => {
     const logger = getLogger(c);
     
     try {
       // 사용자 인증 확인
       const supabase = getSupabase(c);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Authorization 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return respond(
+          c,
+          failure(401, enrollmentsErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (authError || !user) {
         return respond(
@@ -213,13 +235,24 @@ export const registerEnrollmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/enrollments - 사용자의 수강신청 목록 조회
-  app.get('/enrollments', async (c) => {
+  app.get('/api/enrollments', async (c) => {
     const logger = getLogger(c);
     
     try {
       // 사용자 인증 확인
       const supabase = getSupabase(c);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Authorization 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return respond(
+          c,
+          failure(401, enrollmentsErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (authError || !user) {
         return respond(

@@ -7,8 +7,8 @@ import { CourseForm } from "@/features/courses/components/course-form";
 import { useInstructorCourses } from "@/features/courses/hooks/useInstructorCourses";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 type EditCoursePageProps = {
   params: Promise<{ id: string }>;

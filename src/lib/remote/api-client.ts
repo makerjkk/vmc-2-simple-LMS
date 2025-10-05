@@ -1,4 +1,5 @@
 import axios, { isAxiosError } from "axios";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 
 const apiClient = axios.create({
   // Next.js 환경에서는 상대 경로로 API 호출 (기본값: 빈 문자열)
@@ -8,6 +9,27 @@ const apiClient = axios.create({
   },
   timeout: 10000, // 10초 타임아웃 설정
 });
+
+// 요청 인터셉터: 자동으로 인증 토큰 추가
+apiClient.interceptors.request.use(
+  async (config) => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
+      }
+    } catch (error) {
+      console.warn('Failed to get auth token:', error);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 type ErrorPayload = {
   error?: {

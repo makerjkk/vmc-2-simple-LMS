@@ -99,7 +99,7 @@ export const GradeList: React.FC<GradeListProps> = ({
   }
 
   // 수강 중인 코스가 없는 경우
-  if (grades.courses.length === 0) {
+  if (!grades.courses || grades.courses.length === 0) {
     return (
       <div className="text-center py-12">
         <GraduationCap className="w-16 h-16 mx-auto mb-4 text-gray-300" />
@@ -130,19 +130,19 @@ export const GradeList: React.FC<GradeListProps> = ({
             코스별 성적
           </h2>
           <div className="text-sm text-gray-600">
-            총 {grades.courses.length}개 코스
+            총 {grades.courses?.length || 0}개 코스
           </div>
         </div>
 
         <div className="space-y-6">
-          {grades.courses.map((courseGrade) => (
+          {grades.courses?.map((courseGrade) => (
             <CourseGradeCard
               key={courseGrade.courseId}
               courseGrade={courseGrade}
               onAssignmentClick={onAssignmentClick}
               showAssignments={true}
             />
-          ))}
+          )) || []}
         </div>
       </div>
 

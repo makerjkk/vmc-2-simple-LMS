@@ -24,7 +24,7 @@ export const useOnboarding = () => {
   const checkEmailMutation = useMutation({
     mutationFn: async (data: CheckEmailRequest): Promise<CheckEmailResponse> => {
       const response = await apiClient.post('/api/onboarding/check-email', data);
-      return response.data;
+      return response.data.data; // 백엔드 응답 구조에 맞춰 수정
     },
     onError: (error) => {
       console.error('Email check failed:', error);
@@ -35,17 +35,25 @@ export const useOnboarding = () => {
   const signupMutation = useMutation({
     mutationFn: async (data: SignupRequest): Promise<UserResponse> => {
       const response = await apiClient.post('/api/onboarding/signup', data);
-      return response.data;
+      return response.data.data; // 백엔드 응답 구조에 맞춰 수정
     },
     onSuccess: async (userData) => {
-      // 사용자 정보 새로고침
-      await refresh();
-      
-      // 역할별 리다이렉트
-      if (userData.role === 'learner') {
-        router.replace('/courses');
-      } else if (userData.role === 'instructor') {
-        router.replace('/instructor/dashboard');
+      try {
+        // 사용자 정보 새로고침 (비동기 처리 최적화)
+        refresh(); // await 제거하여 블로킹 방지
+        
+        // 약간의 지연 후 리다이렉트 (상태 업데이트 완료 대기)
+        setTimeout(() => {
+          if (userData.role === 'learner') {
+            // 신규 가입한 수강생은 메인 홈페이지로 이동 (환영 및 소개)
+            router.replace('/?welcome=true');
+          } else if (userData.role === 'instructor') {
+            // 강사는 바로 대시보드로 이동
+            router.replace('/instructor/dashboard');
+          }
+        }, 100); // 100ms 지연
+      } catch (error) {
+        console.error('Post-signup processing failed:', error);
       }
     },
     onError: (error) => {
@@ -58,7 +66,7 @@ export const useOnboarding = () => {
     queryKey: ['onboarding', 'roles'],
     queryFn: async (): Promise<RolesResponse> => {
       const response = await apiClient.get('/api/onboarding/roles');
-      return response.data;
+      return response.data.data; // 백엔드 응답 구조에 맞춰 수정
     },
     staleTime: 5 * 60 * 1000, // 5분간 캐시
   });

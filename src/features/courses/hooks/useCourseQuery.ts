@@ -9,8 +9,9 @@ import { CourseDetailResponseSchema } from '../lib/dto';
  */
 const fetchCourse = async (courseId: string) => {
   try {
-    const { data } = await apiClient.get(`/api/courses/${courseId}`);
-    return CourseDetailResponseSchema.parse(data);
+    const response = await apiClient.get(`/api/courses/${courseId}`);
+    // 백엔드 응답 구조에 맞춰 data.data 접근
+    return CourseDetailResponseSchema.parse(response.data.data);
   } catch (error) {
     const message = extractApiErrorMessage(error, 'Failed to fetch course details.');
     throw new Error(message);
@@ -22,8 +23,9 @@ const fetchCourse = async (courseId: string) => {
  */
 const fetchEnrollmentStatus = async (courseId: string) => {
   try {
-    const { data } = await apiClient.get(`/api/courses/${courseId}/enrollment-status`);
-    return data;
+    const response = await apiClient.get(`/api/courses/${courseId}/enrollment-status`);
+    // 백엔드 응답 구조에 맞춰 data.data 접근
+    return response.data.data;
   } catch (error) {
     // 인증 오류는 무시하고 기본값 반환
     const errorMessage = error instanceof Error ? error.message : String(error);

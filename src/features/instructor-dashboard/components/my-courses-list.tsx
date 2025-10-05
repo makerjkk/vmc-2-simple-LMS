@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Users, Star, Edit, Eye, Archive, Plus } from "lucide-react";
+import { BookOpen, Users, Star, Edit, Eye, Archive, Plus, RefreshCw } from "lucide-react";
 import { useInstructorDashboard } from "../hooks/useInstructorDashboard";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useUpdateCourseStatus } from "@/features/courses/hooks/useUpdateCourseStatus";
+import { useErrorDialog } from "@/hooks/useErrorDialog";
+import { ErrorDialog } from "@/components/ui/error-dialog";
 import type { InstructorCourse } from "../lib/dto";
 
 type CourseStatus = 'draft' | 'published' | 'archived';
@@ -15,8 +19,43 @@ type CourseStatus = 'draft' | 'published' | 'archived';
  * 내 코스 목록 컴포넌트
  */
 export function MyCoursesList() {
-  const { data, isLoading, error } = useInstructorDashboard();
-  const [activeTab, setActiveTab] = useState<CourseStatus>('published');
+  const { data, isLoading, error, refetch } = useInstructorDashboard();
+  const [activeTab, setActiveTab] = useState<CourseStatus>('draft');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { errorState, hideError } = useErrorDialog();
+
+  // URL 파라미터에서 탭 정보 읽기
+  useEffect(() => {
+    const tab = searchParams.get('tab') as CourseStatus;
+    if (tab && ['draft', 'published', 'archived'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // 수동 새로고침 함수
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // 새 코스 만들기 페이지로 이동
+  const handleCreateCourse = () => {
+    router.push('/instructor/courses/new');
+  };
+
+  // 탭 변경 핸들러 (URL 업데이트 포함)
+  const handleTabChange = (status: CourseStatus) => {
+    setActiveTab(status);
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', status);
+    router.replace(`/instructor/dashboard?${params.toString()}`);
+  };
 
   if (isLoading) {
     return <MyCoursesListLoading />;
@@ -37,10 +76,22 @@ export function MyCoursesList() {
             <BookOpen className="h-5 w-5" />
             내 코스
           </CardTitle>
-          <Button size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            새 코스 만들기
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-2"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              새로고침
+            </Button>
+            <Button size="sm" className="gap-2" onClick={handleCreateCourse}>
+              <Plus className="h-4 w-4" />
+              새 코스 만들기
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -50,7 +101,7 @@ export function MyCoursesList() {
           <>
             <CourseStatusTabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               courses={courses}
             />
             <div className="mt-6">
@@ -63,6 +114,7 @@ export function MyCoursesList() {
           </>
         )}
       </CardContent>
+      <ErrorDialog errorState={errorState} onClose={hideError} />
     </Card>
   );
 }
@@ -121,6 +173,8 @@ function CourseGrid({ courses }: { courses: InstructorCourse[] }) {
  * 개별 코스 카드 컴포넌트
  */
 function CourseCard({ course }: { course: InstructorCourse }) {
+  const router = useRouter();
+  const updateCourseStatusMutation = useUpdateCourseStatus();
   const getStatusBadge = (status: CourseStatus) => {
     const variants = {
       draft: { variant: 'secondary' as const, label: '초안' },
@@ -132,16 +186,45 @@ function CourseCard({ course }: { course: InstructorCourse }) {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  // 코스 편집 페이지로 이동
+  const handleEdit = () => {
+    console.log('Navigating to edit page:', `/instructor/courses/${course.id}/edit`);
+    try {
+      router.push(`/instructor/courses/${course.id}/edit`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
+  // 코스 상태 변경
+  const handleStatusChange = (newStatus: 'draft' | 'published' | 'archived') => {
+    updateCourseStatusMutation.mutate({
+      courseId: course.id,
+      status: newStatus
+    });
+  };
+
   const getActionButtons = (status: CourseStatus) => {
     switch (status) {
       case 'draft':
         return (
           <>
-            <Button size="sm" variant="outline" className="gap-1">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-1"
+              onClick={handleEdit}
+              disabled={updateCourseStatusMutation.isPending}
+            >
               <Edit className="h-3 w-3" />
               편집
             </Button>
-            <Button size="sm" className="gap-1">
+            <Button 
+              size="sm" 
+              className="gap-1"
+              onClick={() => handleStatusChange('published')}
+              disabled={updateCourseStatusMutation.isPending}
+            >
               <Eye className="h-3 w-3" />
               게시
             </Button>
@@ -150,11 +233,23 @@ function CourseCard({ course }: { course: InstructorCourse }) {
       case 'published':
         return (
           <>
-            <Button size="sm" variant="outline" className="gap-1">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-1"
+              onClick={handleEdit}
+              disabled={updateCourseStatusMutation.isPending}
+            >
               <Edit className="h-3 w-3" />
               관리
             </Button>
-            <Button size="sm" variant="outline" className="gap-1">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-1"
+              onClick={() => handleStatusChange('archived')}
+              disabled={updateCourseStatusMutation.isPending}
+            >
               <Archive className="h-3 w-3" />
               보관
             </Button>
@@ -162,7 +257,13 @@ function CourseCard({ course }: { course: InstructorCourse }) {
         );
       case 'archived':
         return (
-          <Button size="sm" variant="outline" className="gap-1">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="gap-1"
+            onClick={() => handleStatusChange('published')}
+            disabled={updateCourseStatusMutation.isPending}
+          >
             <Eye className="h-3 w-3" />
             복원
           </Button>

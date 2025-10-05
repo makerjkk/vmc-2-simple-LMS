@@ -19,6 +19,8 @@ export interface RoleSelectorProps {
  */
 export const RoleSelector = React.forwardRef<HTMLDivElement, RoleSelectorProps>(
   ({ value, onChange, roles = [], disabled = false, className }, ref) => {
+    // roles가 배열이 아닌 경우 빈 배열로 초기화 (방어적 코딩)
+    const safeRoles = Array.isArray(roles) ? roles : [];
     // 기본 역할 아이콘 매핑
     const getRoleIcon = (roleValue: string) => {
       switch (roleValue) {
@@ -42,25 +44,43 @@ export const RoleSelector = React.forwardRef<HTMLDivElement, RoleSelectorProps>(
           </div>
           
           <div className="grid gap-4 md:grid-cols-2">
-            {roles.map((role) => (
-              <RoleCard
-                key={role.value}
-                value={role.value}
-                label={role.label}
-                description={role.description}
-                icon={getRoleIcon(role.value)}
-                selected={value === role.value}
-                onClick={() => !disabled && onChange(role.value)}
-                className={disabled ? "opacity-50 cursor-not-allowed" : ""}
-              />
-            ))}
+            {safeRoles.length === 0 && disabled ? (
+              // 로딩 중일 때 스켈레톤 표시
+              <>
+                <div className="h-24 bg-muted animate-pulse rounded-lg"></div>
+                <div className="h-24 bg-muted animate-pulse rounded-lg"></div>
+              </>
+            ) : safeRoles.length === 0 ? (
+              // 데이터가 없을 때 메시지 표시
+              <div className="col-span-2 text-center py-8 text-muted-foreground">
+                역할 정보를 불러올 수 없습니다.
+              </div>
+            ) : (
+              // 정상적으로 역할 카드 표시
+              safeRoles.map((role) => (
+                <RoleCard
+                  key={role.value}
+                  value={role.value}
+                  label={role.label}
+                  description={role.description}
+                  icon={getRoleIcon(role.value)}
+                  selected={value === role.value}
+                  onClick={() => {
+                    if (!disabled && value !== role.value) {
+                      onChange(role.value);
+                    }
+                  }}
+                  className={disabled ? "opacity-50 cursor-not-allowed" : ""}
+                />
+              ))
+            )}
           </div>
           
           {value && (
             <div className="mt-4 p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium">선택된 역할:</span>{" "}
-                {roles.find(role => role.value === value)?.label}
+                {safeRoles.find(role => role.value === value)?.label}
               </p>
             </div>
           )}

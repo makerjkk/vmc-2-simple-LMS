@@ -29,7 +29,7 @@ export const getDashboardData = async (
     const { data: user, error: userError } = await client
       .from('users')
       .select('id, role')
-      .eq('id', userId)
+      .eq('auth_user_id', userId)
       .single();
 
     if (userError || !user) {
@@ -40,20 +40,20 @@ export const getDashboardData = async (
       return failure(403, dashboardErrorCodes.invalidRole, 'Learner 권한이 필요합니다.');
     }
 
-    // 2. 수강 중인 코스 목록과 진행률 조회
-    const coursesResult = await getEnrolledCoursesWithProgress(client, userId);
+    // 2. 수강 중인 코스 목록과 진행률 조회 (내부 사용자 ID 사용)
+    const coursesResult = await getEnrolledCoursesWithProgress(client, user.id);
     if (!coursesResult.ok) {
       return failure(500, dashboardErrorCodes.fetchError, '코스 정보 조회에 실패했습니다.');
     }
 
     // 3. 마감 임박 과제 조회 (7일 이내)
-    const upcomingAssignmentsResult = await getUpcomingAssignments(client, userId);
+    const upcomingAssignmentsResult = await getUpcomingAssignments(client, user.id);
     if (!upcomingAssignmentsResult.ok) {
       return failure(500, dashboardErrorCodes.fetchError, '마감 임박 과제 조회에 실패했습니다.');
     }
 
     // 4. 최근 피드백 조회 (7일 이내, 최대 5개)
-    const recentFeedbackResult = await getRecentFeedback(client, userId);
+    const recentFeedbackResult = await getRecentFeedback(client, user.id);
     if (!recentFeedbackResult.ok) {
       return failure(500, dashboardErrorCodes.fetchError, '최근 피드백 조회에 실패했습니다.');
     }

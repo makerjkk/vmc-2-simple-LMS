@@ -32,9 +32,10 @@ const fetchCourses = async (params: CoursesQueryParams) => {
     }
 
     const url = `/api/courses${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    const { data } = await apiClient.get(url);
+    const response = await apiClient.get(url);
     
-    return CoursesResponseSchema.parse(data);
+    // 백엔드 응답 구조에 맞춰 data.data 접근
+    return CoursesResponseSchema.parse(response.data.data);
   } catch (error) {
     const message = extractApiErrorMessage(error, 'Failed to fetch courses.');
     throw new Error(message);

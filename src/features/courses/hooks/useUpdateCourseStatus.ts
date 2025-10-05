@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/remote/api-client';
-import { 
-  InstructorCourseResponseSchema,
-  type InstructorCourseResponse,
-} from '../lib/dto';
+import { useErrorDialog } from '@/hooks/useErrorDialog';
+import { useToast } from '@/hooks/use-toast';
 
 /**
- * 코스 상태를 변경하는 React Query 뮤테이션 훅
+ * 코스 상태 업데이트 뮤테이션 훅
  */
 export const useUpdateCourseStatus = () => {
   const queryClient = useQueryClient();
+  const { showErrorFromException } = useErrorDialog();
+  const { toast } = useToast();
   
   return useMutation({
     mutationFn: async ({ 
@@ -18,35 +18,52 @@ export const useUpdateCourseStatus = () => {
     }: { 
       courseId: string; 
       status: 'draft' | 'published' | 'archived' 
-    }): Promise<InstructorCourseResponse> => {
-      const response = await apiClient.patch(`/api/instructor/courses/${courseId}/status`, { status });
-      
-      // 응답 데이터 검증
-      const parsedData = InstructorCourseResponseSchema.safeParse(response.data.data);
-      
-      if (!parsedData.success) {
-        throw new Error('상태 변경된 코스 데이터 형식이 올바르지 않습니다.');
-      }
-      
-      return parsedData.data;
+    }) => {
+      const response = await apiClient.patch(`/api/instructor/courses/${courseId}/status`, {
+        status
+      });
+      return response.data.data;
     },
-    onSuccess: (updatedCourse, { courseId }) => {
-      // 강사 코스 목록 캐시 무효화
+    onSuccess: (data, variables) => {
+      // 성공 메시지 표시
+      const statusLabels = {
+        draft: '초안으로 변경',
+        published: '게시',
+        archived: '보관'
+      };
+      
+      toast({
+        title: "✅ 상태 변경 완료",
+        description: `코스가 성공적으로 ${statusLabels[variables.status]}되었습니다.`,
+        duration: 3000,
+      });
+      
+      // 관련 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['instructor-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['instructor-courses'] });
+      queryClient.invalidateQueries({ queryKey: ['courses'] });
       
-      // 특정 코스 캐시 업데이트
-      queryClient.setQueryData(['course', courseId], updatedCourse);
-      
-      // 코스 상세 캐시도 무효화 (공개 코스 상세 페이지용)
-      queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-      
-      // 공개 코스 목록 캐시도 무효화 (published 상태 변경 시 목록에 영향)
-      if (updatedCourse.status === 'published') {
-        queryClient.invalidateQueries({ queryKey: ['courses'] });
-      }
+      // 업데이트된 코스 데이터를 캐시에 설정
+      queryClient.setQueryData(['course', variables.courseId], data);
     },
-    onError: (error) => {
-      console.error('코스 상태 변경 중 오류 발생:', error);
+    onError: (error, variables) => {
+      const statusLabels = {
+        draft: '초안으로 변경',
+        published: '게시',
+        archived: '보관'
+      };
+      
+      toast({
+        title: "❌ 상태 변경 실패",
+        description: `코스 ${statusLabels[variables.status]} 중 오류가 발생했습니다.`,
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      showErrorFromException(
+        error instanceof Error ? error : new Error("알 수 없는 오류가 발생했습니다."),
+        `코스 ${statusLabels[variables.status]} 실패`
+      );
     },
   });
 };

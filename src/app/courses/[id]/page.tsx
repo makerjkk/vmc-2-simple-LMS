@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from 'react';
+import { HomeLayout } from '@/components/layout/home-layout';
 import { CourseDetail } from '@/features/courses/components/course-detail';
 
 type CourseDetailPageProps = {
@@ -15,8 +16,10 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
   const { id } = use(params);
 
   return (
-    <div className="container mx-auto py-8">
-      <CourseDetail courseId={id} />
-    </div>
+    <HomeLayout>
+      <div className="container mx-auto py-8">
+        <CourseDetail courseId={id} />
+      </div>
+    </HomeLayout>
   );
 }

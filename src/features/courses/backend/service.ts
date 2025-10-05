@@ -38,7 +38,8 @@ import {
  */
 export const getCourses = async (
   client: SupabaseClient,
-  params: CoursesQueryParams
+  params: CoursesQueryParams,
+  userId?: string
 ): Promise<HandlerResult<CoursesResponse, CoursesServiceError, unknown>> => {
   try {
     const {
@@ -99,10 +100,15 @@ export const getCourses = async (
     const { data, error } = await query;
 
     if (error) {
+      console.error('getCourses Supabase error:', error);
       return failure(500, coursesErrorCodes.fetchError, error.message);
     }
 
+    console.log('getCourses raw data:', data);
+    console.log('getCourses data length:', data?.length);
+
     if (!data) {
+      console.log('getCourses: No data returned, returning empty result');
       return success({
         courses: [],
         pagination: {
@@ -114,13 +120,31 @@ export const getCourses = async (
       });
     }
 
+    // 사용자의 수강신청 정보 조회 (로그인한 경우)
+    let userEnrollments: Set<string> = new Set();
+    if (userId) {
+      const { data: enrollmentData } = await client
+        .from('enrollments')
+        .select('course_id')
+        .eq('learner_id', userId)
+        .eq('is_active', true);
+      
+      if (enrollmentData) {
+        userEnrollments = new Set(enrollmentData.map(e => e.course_id));
+      }
+    }
+
     // 데이터 검증 및 변환
     const validatedCourses = [];
+    console.log('getCourses: Processing', data.length, 'rows');
+    
     for (const row of data) {
+      console.log('getCourses: Processing row:', JSON.stringify(row, null, 2));
       const rowParse = CourseTableRowSchema.safeParse(row);
       
       if (!rowParse.success) {
         console.error('Course row validation failed:', rowParse.error);
+        console.error('Failed row data:', JSON.stringify(row, null, 2));
         continue;
       }
 
@@ -142,6 +166,7 @@ export const getCourses = async (
           id: validatedRow.category.id,
           name: validatedRow.category.name,
         } : null,
+        isEnrolled: userEnrollments.has(validatedRow.id), // 수강신청 상태 추가
       });
     }
 

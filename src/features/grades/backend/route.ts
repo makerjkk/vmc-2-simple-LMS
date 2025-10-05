@@ -26,13 +26,24 @@ import {
  */
 export const registerGradesRoutes = (app: Hono<AppEnv>) => {
   // GET /api/grades - 전체 성적 조회
-  app.get('/grades', async (c) => {
+  app.get('/api/grades', async (c) => {
     const logger = getLogger(c);
     
     try {
       // 사용자 인증 확인
       const supabase = getSupabase(c);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Authorization 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return respond(
+          c,
+          failure(401, gradesErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (authError || !user) {
         return respond(
@@ -45,7 +56,7 @@ export const registerGradesRoutes = (app: Hono<AppEnv>) => {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id, role')
-        .eq('id', user.id)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData) {
@@ -93,7 +104,7 @@ export const registerGradesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/grades/courses/:courseId - 특정 코스 성적 조회
-  app.get('/grades/courses/:courseId', async (c) => {
+  app.get('/api/grades/courses/:courseId', async (c) => {
     const logger = getLogger(c);
     
     try {
@@ -110,7 +121,18 @@ export const registerGradesRoutes = (app: Hono<AppEnv>) => {
 
       // 사용자 인증 확인
       const supabase = getSupabase(c);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      // Authorization 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return respond(
+          c,
+          failure(401, gradesErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       
       if (authError || !user) {
         return respond(
@@ -123,7 +145,7 @@ export const registerGradesRoutes = (app: Hono<AppEnv>) => {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('id, role')
-        .eq('id', user.id)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData) {

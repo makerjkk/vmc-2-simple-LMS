@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CourseCard } from './course-card';
 import { CourseFilters } from './course-filters';
 import { Button } from '@/components/ui/button';
@@ -8,14 +8,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { useCoursesQuery } from '../hooks/useCoursesQuery';
 import { useEnrollment } from '@/features/enrollments/hooks/useEnrollment';
+import { useCategories } from '@/features/categories/hooks/useCategories';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { ToastAction } from '@/components/ui/toast';
 import type { CourseFilters as CourseFiltersType, SortOption } from '@/lib/utils/search';
 import type { CoursesQueryParams } from '../lib/dto';
 
 interface CourseListProps {
   initialParams?: CoursesQueryParams;
   showEnrollButtons?: boolean;
-  categories?: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -25,10 +27,13 @@ interface CourseListProps {
 export const CourseList = ({
   initialParams = {},
   showEnrollButtons = false,
-  categories = [],
 }: CourseListProps) => {
   const { toast } = useToast();
+  const router = useRouter();
   const { enroll, isEnrolling } = useEnrollment();
+  
+  // 카테고리 데이터 로딩
+  const { data: categoriesData } = useCategories();
 
   // 쿼리 파라미터 상태
   const [queryParams, setQueryParams] = useState<CoursesQueryParams>({
@@ -48,57 +53,67 @@ export const CourseList = ({
     isFetching,
   } = useCoursesQuery(queryParams);
 
-  // 검색어 변경 처리
-  const handleSearchChange = (search: string) => {
+  // 검색어 변경 처리 (useCallback으로 최적화)
+  const handleSearchChange = useCallback((search: string) => {
     setQueryParams(prev => ({
       ...prev,
       search: search || undefined,
       page: 1, // 검색 시 첫 페이지로 리셋
     }));
-  };
+  }, []);
 
-  // 필터 변경 처리
-  const handleFilterChange = (filters: CourseFiltersType) => {
+  // 필터 변경 처리 (useCallback으로 최적화)
+  const handleFilterChange = useCallback((filters: CourseFiltersType) => {
     setQueryParams(prev => ({
       ...prev,
       category: filters.category || undefined,
       difficulty: filters.difficulty || undefined,
       page: 1, // 필터 변경 시 첫 페이지로 리셋
     }));
-  };
+  }, []);
 
-  // 정렬 변경 처리
-  const handleSortChange = (sortBy: SortOption) => {
+  // 정렬 변경 처리 (useCallback으로 최적화)
+  const handleSortChange = useCallback((sortBy: SortOption) => {
     setQueryParams(prev => ({
       ...prev,
       sortBy,
       page: 1, // 정렬 변경 시 첫 페이지로 리셋
     }));
-  };
+  }, []);
 
-  // 페이지 변경 처리
-  const handlePageChange = (page: number) => {
+  // 페이지 변경 처리 (useCallback으로 최적화)
+  const handlePageChange = useCallback((page: number) => {
     setQueryParams(prev => ({
       ...prev,
       page,
     }));
-  };
+  }, []);
 
   // 수강신청 처리
   const handleEnrollClick = async (courseId: string) => {
     try {
       await enroll(courseId);
       toast({
-        title: '수강신청 완료',
-        description: '수강신청이 완료되었습니다.',
+        title: '🎉 수강신청 완료!',
+        description: '수강신청이 완료되었습니다. 이제 학습을 시작할 수 있습니다!',
+        duration: 5000,
+        action: (
+          <ToastAction 
+            altText="학습하기"
+            onClick={() => router.push('/dashboard')}
+          >
+            학습하기
+          </ToastAction>
+        ),
       });
       // 목록 새로고침 (수강생 수 업데이트를 위해)
       refetch();
     } catch (error) {
       toast({
-        title: '수강신청 실패',
+        title: '❌ 수강신청 실패',
         description: error instanceof Error ? error.message : '수강신청 중 오류가 발생했습니다.',
         variant: 'destructive',
+        duration: 5000,
       });
     }
   };
@@ -117,7 +132,7 @@ export const CourseList = ({
             difficulty: queryParams.difficulty,
           }}
           initialSort={queryParams.sortBy}
-          categories={categories}
+          categories={categoriesData?.categories || []}
           isLoading={true}
         />
         
@@ -145,7 +160,7 @@ export const CourseList = ({
             difficulty: queryParams.difficulty,
           }}
           initialSort={queryParams.sortBy}
-          categories={categories}
+          categories={categoriesData?.categories || []}
         />
 
         <Card>
@@ -185,7 +200,7 @@ export const CourseList = ({
           difficulty: queryParams.difficulty,
         }}
         initialSort={queryParams.sortBy}
-        categories={categories}
+        categories={categoriesData?.categories || []}
         isLoading={isFetching}
       />
 
@@ -224,13 +239,14 @@ export const CourseList = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((course) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              showEnrollButton={showEnrollButtons}
-              onEnrollClick={handleEnrollClick}
-              isEnrolling={isEnrolling}
-            />
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    showEnrollButton={showEnrollButtons}
+                    onEnrollClick={handleEnrollClick}
+                    isEnrolling={isEnrolling}
+                    isEnrolled={course.isEnrolled || false}
+                  />
           ))}
         </div>
       )}

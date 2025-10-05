@@ -1,6 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/auth/role-guard";
+import { HomeLayout } from "@/components/layout/home-layout";
 import { InstructorStats } from "@/features/instructor-dashboard/components/instructor-stats";
 import { MyCoursesList } from "@/features/instructor-dashboard/components/my-courses-list";
 import { PendingGrades } from "@/features/instructor-dashboard/components/pending-grades";
@@ -20,32 +21,34 @@ export default function InstructorDashboardPage({ params }: InstructorDashboardP
   
   return (
     <RoleGuard allowedRoles={['instructor']}>
-      <div className="container mx-auto py-8">
-        <div className="space-y-6">
-          {/* 페이지 헤더 */}
-          <div>
-            <h1 className="text-3xl font-bold">강사 대시보드</h1>
-            <p className="text-muted-foreground mt-2">
-              코스와 과제를 관리하고 학습자들의 진행상황을 확인하세요.
-            </p>
+      <HomeLayout>
+        <div className="container mx-auto py-8">
+          <div className="space-y-6">
+            {/* 페이지 헤더 */}
+            <div>
+              <h1 className="text-3xl font-bold">강사 대시보드</h1>
+              <p className="text-muted-foreground mt-2">
+                코스와 과제를 관리하고 학습자들의 진행상황을 확인하세요.
+              </p>
+            </div>
+            
+            {/* 통계 카드 */}
+            <InstructorStats />
+            
+            {/* 내 코스 목록 */}
+            <MyCoursesList />
+            
+            {/* 채점 대기 및 최근 제출물 */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <PendingGrades />
+              <RecentSubmissions />
+            </div>
+            
+            {/* 빠른 작업 */}
+            <QuickActions />
           </div>
-          
-          {/* 통계 카드 */}
-          <InstructorStats />
-          
-          {/* 내 코스 목록 */}
-          <MyCoursesList />
-          
-          {/* 채점 대기 및 최근 제출물 */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <PendingGrades />
-            <RecentSubmissions />
-          </div>
-          
-          {/* 빠른 작업 */}
-          <QuickActions />
         </div>
-      </div>
+      </HomeLayout>
     </RoleGuard>
   );
 }

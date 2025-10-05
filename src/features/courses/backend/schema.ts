@@ -43,6 +43,7 @@ export const CourseResponseSchema = z.object({
     id: z.string().uuid(),
     name: z.string(),
   }).nullable(),
+  isEnrolled: z.boolean().optional(), // 수강신청 상태 추가
 });
 
 export type CourseResponse = z.infer<typeof CourseResponseSchema>;
@@ -65,7 +66,7 @@ export const CourseDetailResponseSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
-  curriculum: z.string().nullable(),
+  curriculum: z.string().nullable().optional(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   enrollmentCount: z.number(),
   averageRating: z.number(),
@@ -96,7 +97,7 @@ export const CourseTableRowSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
-  curriculum: z.string().nullable(),
+  curriculum: z.string().nullable().optional(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   status: z.enum(['draft', 'published', 'archived']),
   enrollment_count: z.number(),
@@ -164,7 +165,7 @@ export const InstructorCourseResponseSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
-  curriculum: z.string().nullable(),
+  curriculum: z.string().nullable().optional(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   status: z.enum(['draft', 'published', 'archived']),
   enrollmentCount: z.number(),
@@ -198,7 +199,7 @@ export const InstructorCourseTableRowSchema = z.object({
   instructor_id: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
-  curriculum: z.string().nullable(),
+  curriculum: z.string().nullable().optional(),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   status: z.enum(['draft', 'published', 'archived']),
   enrollment_count: z.number(),

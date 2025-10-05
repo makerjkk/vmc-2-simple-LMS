@@ -9,8 +9,9 @@ export const useGradesQuery = () => {
   return useQuery({
     queryKey: ['grades'],
     queryFn: async (): Promise<GradesResponse> => {
-      const response = await apiClient.get('/grades');
-      return response.data;
+      const response = await apiClient.get('/api/grades');
+      // 백엔드 응답 구조에 맞춰 data.data 접근
+      return response.data.data;
     },
     staleTime: 5 * 60 * 1000, // 5분
     gcTime: 10 * 60 * 1000, // 10분 (이전 cacheTime)

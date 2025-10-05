@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import { EnrollButton } from '@/features/enrollments/components/enroll-button';
 import type { CourseResponse } from '../lib/dto';
 
 interface CourseCardProps {
@@ -15,6 +17,7 @@ interface CourseCardProps {
   showEnrollButton?: boolean;
   onEnrollClick?: (courseId: string) => void;
   isEnrolling?: boolean;
+  isEnrolled?: boolean;
 }
 
 /**
@@ -26,7 +29,20 @@ export const CourseCard = ({
   showEnrollButton = false,
   onEnrollClick,
   isEnrolling = false,
+  isEnrolled = false,
 }: CourseCardProps) => {
+  const [localIsEnrolled, setLocalIsEnrolled] = useState(isEnrolled);
+
+  // isEnrolled prop이 변경되면 로컬 상태도 업데이트
+  useEffect(() => {
+    setLocalIsEnrolled(isEnrolled);
+  }, [isEnrolled]);
+
+  // 수강신청 상태 변경 핸들러
+  const handleEnrollmentChange = (enrolled: boolean) => {
+    setLocalIsEnrolled(enrolled);
+  };
+
   const {
     id,
     title,
@@ -150,14 +166,15 @@ export const CourseCard = ({
         </Button>
 
         {/* 수강신청 버튼 */}
-        {showEnrollButton && onEnrollClick && (
-          <Button
-            onClick={() => onEnrollClick(id)}
-            disabled={isEnrolling}
+        {showEnrollButton && (
+          <EnrollButton
+            courseId={id}
+            courseTitle={title}
+            isEnrolled={localIsEnrolled}
+            onEnrollmentChange={handleEnrollmentChange}
+            size="default"
             className="flex-1"
-          >
-            {isEnrolling ? '처리중...' : '수강신청'}
-          </Button>
+          />
         )}
       </CardFooter>
     </Card>

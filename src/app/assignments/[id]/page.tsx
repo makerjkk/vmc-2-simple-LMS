@@ -1,5 +1,6 @@
 import { RoleGuard } from '@/components/auth/role-guard';
 import { AssignmentDetail } from '@/features/assignments/components/assignment-detail';
+import { HomeLayout } from '@/components/layout/home-layout';
 
 interface AssignmentDetailPageProps {
   params: Promise<{ id: string }>;
@@ -16,9 +17,11 @@ export default async function AssignmentDetailPage({
   
   return (
     <RoleGuard allowedRoles={['learner']}>
-      <div className="container mx-auto px-4 py-8">
-        <AssignmentDetail assignmentId={id} />
-      </div>
+      <HomeLayout>
+        <div className="container mx-auto px-4 py-8">
+          <AssignmentDetail assignmentId={id} />
+        </div>
+      </HomeLayout>
     </RoleGuard>
   );
 }

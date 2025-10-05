@@ -1170,7 +1170,7 @@ export const getAssignmentSubmissions = async (
         graded_at,
         graded_by,
         updated_at,
-        users!inner(
+        users!submissions_learner_id_fkey(
           id,
           full_name,
           email
@@ -1466,7 +1466,7 @@ export const getSubmissionsForGrading = async (
         feedback,
         submitted_at,
         graded_at,
-        users!inner(
+        users!submissions_learner_id_fkey(
           id,
           full_name,
           email
@@ -1575,7 +1575,7 @@ export const getSubmissionDetailForGrading = async (
         feedback,
         submitted_at,
         graded_at,
-        users!inner(
+        users!submissions_learner_id_fkey(
           id,
           full_name,
           email

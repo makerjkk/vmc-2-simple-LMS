@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useCurrentUser } from "@/features/auth/hooks/useCurrentUser";
+import { HomeLayout } from "@/components/layout/home-layout";
 import { useDashboard } from '@/features/dashboard/hooks/useDashboard';
 import { DashboardStats } from '@/features/dashboard/components/dashboard-stats';
 import { CourseProgressCard } from '@/features/dashboard/components/course-progress-card';
@@ -11,6 +12,9 @@ import { RecentFeedback } from '@/features/dashboard/components/recent-feedback'
 import { DashboardLoading } from '@/features/dashboard/components/dashboard-loading';
 import { DashboardError } from '@/features/dashboard/components/dashboard-error';
 import { DashboardEmpty } from '@/features/dashboard/components/dashboard-empty';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BookOpen, GraduationCap, FileText, Users, PlusCircle, Settings } from 'lucide-react';
 
 type DashboardPageProps = {
   params: Promise<Record<string, never>>;
@@ -40,66 +44,75 @@ export default function DashboardPage({ params }: DashboardPageProps) {
   // 로딩 상태
   if (userLoading || isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8">
-          <div className="h-8 bg-slate-200 rounded animate-pulse w-32 mb-2" />
-          <div className="h-5 bg-slate-200 rounded animate-pulse w-48" />
+      <HomeLayout>
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <div className="mb-8">
+            <div className="h-8 bg-slate-200 rounded animate-pulse w-32 mb-2" />
+            <div className="h-5 bg-slate-200 rounded animate-pulse w-48" />
+          </div>
+          <DashboardLoading />
         </div>
-        <DashboardLoading />
-      </div>
+      </HomeLayout>
     );
   }
 
   // 에러 상태
   if (error) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
-          <p className="text-slate-600 mt-2">
-            {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
-          </p>
-        </header>
-        <DashboardError 
-          error={error as Error} 
-          onRetry={() => refetch()} 
-        />
-      </div>
+      <HomeLayout>
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <header className="mb-8">
+            <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
+            <p className="text-slate-600 mt-2">
+              {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
+            </p>
+          </header>
+          <DashboardError 
+            error={error as Error} 
+            onRetry={() => refetch()} 
+          />
+        </div>
+      </HomeLayout>
     );
   }
 
   // 데이터가 없는 경우
   if (!data) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
-          <p className="text-slate-600 mt-2">
-            {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
-          </p>
-        </header>
-        <DashboardEmpty />
-      </div>
+      <HomeLayout>
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <header className="mb-8">
+            <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
+            <p className="text-slate-600 mt-2">
+              {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
+            </p>
+          </header>
+          <DashboardEmpty />
+        </div>
+      </HomeLayout>
     );
   }
 
   // 수강 중인 코스가 없는 경우
   if (data.courses.length === 0) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
-          <p className="text-slate-600 mt-2">
-            {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
-          </p>
-        </header>
-        <DashboardEmpty />
-      </div>
+      <HomeLayout>
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <header className="mb-8">
+            <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
+            <p className="text-slate-600 mt-2">
+              {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
+            </p>
+          </header>
+          <DashboardEmpty />
+        </div>
+      </HomeLayout>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
+    <HomeLayout>
+      <div className="mx-auto max-w-7xl px-6 py-8">
       <header className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -109,18 +122,26 @@ export default function DashboardPage({ params }: DashboardPageProps) {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="outline"
               onClick={() => router.push('/courses')}
-              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               코스 탐색
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => router.push('/grades')}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               내 성적
-            </button>
+            </Button>
+            {/* 강사 권한이 있는 경우 강사 대시보드 버튼 표시 */}
+            {user?.profile?.role === 'instructor' && (
+              <Button
+                variant="secondary"
+                onClick={() => router.push('/instructor/dashboard')}
+              >
+                강사 모드
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -128,6 +149,58 @@ export default function DashboardPage({ params }: DashboardPageProps) {
       <div className="space-y-8">
         {/* 통계 정보 */}
         <DashboardStats data={data} />
+
+        {/* 빠른 액션 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              빠른 액션
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Button
+                variant="outline"
+                className="h-auto flex flex-col items-center gap-2 p-4"
+                onClick={() => router.push('/grades')}
+              >
+                <GraduationCap className="h-6 w-6" />
+                <span className="text-sm">내 성적</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="h-auto flex flex-col items-center gap-2 p-4"
+                onClick={() => router.push('/courses')}
+              >
+                <BookOpen className="h-6 w-6" />
+                <span className="text-sm">코스 탐색</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-auto flex flex-col items-center gap-2 p-4"
+                onClick={() => router.push('/assignments')}
+              >
+                <FileText className="h-6 w-6" />
+                <span className="text-sm">내 과제</span>
+              </Button>
+
+              {/* 강사 권한이 있는 경우 과제 관리 버튼 표시 */}
+              {user?.profile?.role === 'instructor' && (
+                <Button
+                  variant="outline"
+                  className="h-auto flex flex-col items-center gap-2 p-4"
+                  onClick={() => router.push('/instructor/dashboard')}
+                >
+                  <Users className="h-6 w-6" />
+                  <span className="text-sm">강사 대시보드</span>
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 메인 콘텐츠 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -156,6 +229,7 @@ export default function DashboardPage({ params }: DashboardPageProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </HomeLayout>
   );
 }

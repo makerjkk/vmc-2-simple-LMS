@@ -37,7 +37,7 @@ import {
  */
 export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   // GET /api/courses - 코스 목록 조회 (검색, 필터, 정렬)
-  app.get('/courses', async (c) => {
+  app.get('/api/courses', async (c) => {
     const logger = getLogger(c);
     
     try {
@@ -66,7 +66,29 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
       }
 
       const supabase = getSupabase(c);
-      const result = await getCourses(supabase, parsedParams.data);
+      
+      // 사용자 인증 확인 (선택적)
+      let userId: string | undefined;
+      const authHeader = c.req.header('Authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        
+        if (user) {
+          // public.users 테이블에서 사용자 ID 조회
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id')
+            .eq('auth_user_id', user.id)
+            .single();
+          
+          if (userData) {
+            userId = userData.id;
+          }
+        }
+      }
+      
+      const result = await getCourses(supabase, parsedParams.data, userId);
 
       if (!result.ok) {
         const errorResult = result as ErrorResult<CoursesServiceError, unknown>;
@@ -74,6 +96,8 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
         if (errorResult.error.code === coursesErrorCodes.fetchError) {
           logger.error('Failed to fetch courses', errorResult.error.message);
         }
+        
+        return respond(c, result);
       }
 
       return respond(c, result);
@@ -88,7 +112,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/courses/:id - 코스 상세 조회
-  app.get('/courses/:id', async (c) => {
+  app.get('/api/courses/:id', async (c) => {
     const logger = getLogger(c);
     
     try {
@@ -113,8 +137,22 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
       // 사용자 ID 추출 (선택적)
       let userId: string | undefined;
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        userId = user?.id;
+        const authHeader = c.req.header('Authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user } } = await supabase.auth.getUser(token);
+          
+          if (user?.id) {
+            // public.users 테이블에서 내부 ID 조회
+            const { data: userData } = await supabase
+              .from('users')
+              .select('id')
+              .eq('auth_user_id', user.id)
+              .single();
+            
+            userId = userData?.id;
+          }
+        }
       } catch (authError) {
         // 인증 오류는 무시하고 비로그인 사용자로 처리
         logger.info('User not authenticated, proceeding without user context');
@@ -142,7 +180,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/courses/:courseId/enrollment-status - 수강신청 상태 확인
-  app.get('/courses/:courseId/enrollment-status', async (c) => {
+  app.get('/api/courses/:courseId/enrollment-status', async (c) => {
     const logger = getLogger(c);
     
     try {
@@ -165,19 +203,43 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
       const supabase = getSupabase(c);
       
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return respond(
           c,
           failure(401, coursesErrorCodes.unauthorized, 'Authentication required')
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return respond(
+          c,
+          failure(401, coursesErrorCodes.unauthorized, 'Invalid authentication token')
+        );
+      }
+
+      // public.users 테이블에서 사용자 정보 조회
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        logger.error('User not found in public.users table:', userError);
+        return respond(
+          c,
+          failure(404, coursesErrorCodes.fetchError, 'User not found')
+        );
+      }
+
       const result = await getEnrollmentStatus(
         supabase, 
         parsedParams.data.courseId, 
-        user.id
+        userData.id // public.users 테이블의 내부 ID 사용
       );
 
       if (!result.ok) {
@@ -202,27 +264,36 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   // Course Management API 엔드포인트들
 
   // GET /api/instructor/courses - 강사의 코스 목록 조회
-  app.get('/instructor/courses', async (c) => {
+  app.get('/api/instructor/courses', async (c) => {
     const logger = getLogger(c);
     
     try {
       const supabase = getSupabase(c);
       
       // 사용자 인증 및 강사 권한 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return respond(
           c,
           failure(401, coursesErrorCodes.unauthorized, '인증이 필요합니다.')
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return respond(
+          c,
+          failure(401, coursesErrorCodes.unauthorized, '유효하지 않은 인증 토큰입니다.')
+        );
+      }
+
       // 사용자 역할 확인
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', user.id)
+        .select('id, role')
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData || userData.role !== 'instructor') {
@@ -253,7 +324,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
-      const result = await getInstructorCourses(supabase, user.id, parsedParams.data);
+      const result = await getInstructorCourses(supabase, userData.id, parsedParams.data);
 
       if (!result.ok) {
         const errorResult = result as ErrorResult<CoursesServiceError, unknown>;
@@ -275,27 +346,36 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // POST /api/instructor/courses - 새 코스 생성
-  app.post('/instructor/courses', async (c) => {
+  app.post('/api/instructor/courses', async (c) => {
     const logger = getLogger(c);
     
     try {
       const supabase = getSupabase(c);
       
       // 사용자 인증 및 강사 권한 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return respond(
           c,
           failure(401, coursesErrorCodes.unauthorized, '인증이 필요합니다.')
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return respond(
+          c,
+          failure(401, coursesErrorCodes.unauthorized, '유효하지 않은 인증 토큰입니다.')
+        );
+      }
+
       // 사용자 역할 확인
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', user.id)
+        .select('id, role')
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData || userData.role !== 'instructor') {
@@ -321,7 +401,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
-      const result = await createCourse(supabase, user.id, parsedBody.data);
+      const result = await createCourse(supabase, userData.id, parsedBody.data);
 
       if (!result.ok) {
         const errorResult = result as ErrorResult<CoursesServiceError, unknown>;
@@ -345,27 +425,36 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // PUT /api/instructor/courses/:id - 코스 수정
-  app.put('/instructor/courses/:id', async (c) => {
+  app.put('/api/instructor/courses/:id', async (c) => {
     const logger = getLogger(c);
     
     try {
       const supabase = getSupabase(c);
       
       // 사용자 인증 및 강사 권한 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return respond(
           c,
           failure(401, coursesErrorCodes.unauthorized, '인증이 필요합니다.')
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return respond(
+          c,
+          failure(401, coursesErrorCodes.unauthorized, '유효하지 않은 인증 토큰입니다.')
+        );
+      }
+
       // 사용자 역할 확인
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', user.id)
+        .select('id, role')
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData || userData.role !== 'instructor') {
@@ -407,7 +496,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
-      const result = await updateCourse(supabase, courseId, user.id, parsedBody.data);
+      const result = await updateCourse(supabase, courseId, userData.id, parsedBody.data);
 
       if (!result.ok) {
         const errorResult = result as ErrorResult<CoursesServiceError, unknown>;
@@ -432,27 +521,44 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
   });
 
   // PATCH /api/instructor/courses/:id/status - 코스 상태 변경
-  app.patch('/instructor/courses/:id/status', async (c) => {
+  app.patch('/api/instructor/courses/:id/status', async (c) => {
     const logger = getLogger(c);
     
     try {
       const supabase = getSupabase(c);
       
       // 사용자 인증 및 강사 권한 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      logger.info('Auth header:', { authHeader: authHeader ? 'Present' : 'Missing' });
       
-      if (authError || !user) {
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        logger.error('Missing or invalid auth header');
         return respond(
           c,
           failure(401, coursesErrorCodes.unauthorized, '인증이 필요합니다.')
         );
       }
 
+      const token = authHeader.replace('Bearer ', '');
+      logger.info('Extracted token length:', token.length);
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        logger.error('Auth error:', { authError, hasUser: !!user });
+        return respond(
+          c,
+          failure(401, coursesErrorCodes.unauthorized, '유효하지 않은 인증 토큰입니다.')
+        );
+      }
+
+      logger.info('User authenticated:', { userId: user.id });
+
       // 사용자 역할 확인
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role')
-        .eq('id', user.id)
+        .select('id, role')
+        .eq('auth_user_id', user.id)
         .single();
 
       if (userError || !userData || userData.role !== 'instructor') {
@@ -494,7 +600,7 @@ export const registerCoursesRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
-      const result = await updateCourseStatus(supabase, courseId, user.id, parsedBody.data.status);
+      const result = await updateCourseStatus(supabase, courseId, userData.id, parsedBody.data.status);
 
       if (!result.ok) {
         const errorResult = result as ErrorResult<CoursesServiceError, unknown>;

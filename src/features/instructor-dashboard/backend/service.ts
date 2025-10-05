@@ -28,7 +28,7 @@ export const getInstructorDashboardData = async (
     const { data: user, error: userError } = await client
       .from('users')
       .select('id, role')
-      .eq('id', instructorId)
+      .eq('auth_user_id', instructorId)
       .single();
 
     if (userError || !user) {
@@ -39,20 +39,20 @@ export const getInstructorDashboardData = async (
       return failure(403, instructorDashboardErrorCodes.invalidRole, 'Instructor 권한이 필요합니다.');
     }
 
-    // 2. 강사의 코스 목록과 통계 조회
-    const coursesResult = await getInstructorCoursesWithStats(client, instructorId);
+    // 2. 강사의 코스 목록과 통계 조회 (public.users 테이블의 id 사용)
+    const coursesResult = await getInstructorCoursesWithStats(client, user.id);
     if (!coursesResult.ok) {
       return failure(500, instructorDashboardErrorCodes.fetchError, '코스 정보 조회에 실패했습니다.');
     }
 
-    // 3. 채점 대기 제출물 조회
-    const pendingSubmissionsResult = await getPendingGradingSubmissions(client, instructorId);
+    // 3. 채점 대기 제출물 조회 (public.users 테이블의 id 사용)
+    const pendingSubmissionsResult = await getPendingGradingSubmissions(client, user.id);
     if (!pendingSubmissionsResult.ok) {
       return failure(500, instructorDashboardErrorCodes.fetchError, '채점 대기 제출물 조회에 실패했습니다.');
     }
 
-    // 4. 최근 제출물 조회 (7일 이내, 최대 10개)
-    const recentSubmissionsResult = await getRecentSubmissions(client, instructorId);
+    // 4. 최근 제출물 조회 (7일 이내, 최대 10개) (public.users 테이블의 id 사용)
+    const recentSubmissionsResult = await getRecentSubmissions(client, user.id);
     if (!recentSubmissionsResult.ok) {
       return failure(500, instructorDashboardErrorCodes.fetchError, '최근 제출물 조회에 실패했습니다.');
     }
@@ -144,7 +144,7 @@ const getPendingGradingSubmissions = async (
             instructor_id
           )
         ),
-        users!inner(
+        users!submissions_learner_id_fkey(
           id,
           full_name
         )
@@ -219,7 +219,7 @@ const getRecentSubmissions = async (
             instructor_id
           )
         ),
-        users!inner(
+        users!submissions_learner_id_fkey(
           id,
           full_name
         )

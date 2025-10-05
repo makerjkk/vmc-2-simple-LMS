@@ -20,10 +20,11 @@ export const useInstructorDashboard = () => {
       
       return parsedData.data;
     },
-    staleTime: 5 * 60 * 1000, // 5분 캐시
+    staleTime: 1 * 60 * 1000, // 1분 캐시 (더 자주 업데이트)
     refetchOnWindowFocus: true, // 윈도우 포커스 시 새로고침
-    refetchInterval: 5 * 60 * 1000, // 5분마다 자동 새로고침
+    refetchInterval: 2 * 60 * 1000, // 2분마다 자동 새로고침 (더 자주)
     refetchOnMount: true, // 마운트 시 새로고침
+    refetchIntervalInBackground: true, // 백그라운드에서도 새로고침
     retry: 3, // 실패 시 3번 재시도
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // 지수 백오프
   });

@@ -35,6 +35,8 @@ import {
   type InstructorCourseResponse,
 } from '../lib/dto';
 import { useToast } from '@/hooks/use-toast';
+import { useErrorDialog } from '@/hooks/useErrorDialog';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 
 interface CourseFormProps {
   mode: 'create' | 'edit';
@@ -49,6 +51,7 @@ interface CourseFormProps {
 export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { errorState, showErrorFromException, hideError } = useErrorDialog();
   const createCourseMutation = useCreateCourse();
   const updateCourseMutation = useUpdateCourse();
 
@@ -85,12 +88,13 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
         const result = await createCourseMutation.mutateAsync(data);
         
         toast({
-          title: "코스 생성 완료",
-          description: "새 코스가 성공적으로 생성되었습니다.",
+          title: "🎉 코스 생성 완료!",
+          description: `"${result.title}" 코스가 성공적으로 등록되었습니다. 강사 대시보드에서 확인하세요.`,
+          duration: 4000,
         });
         
-        // 생성된 코스의 편집 페이지로 이동
-        router.push(`/instructor/courses/${result.id}/edit`);
+        // 강사 대시보드로 이동
+                router.push('/instructor/dashboard?tab=draft');
         
       } else if (mode === 'edit' && courseId) {
         // 코스 수정
@@ -130,11 +134,19 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
     } catch (error) {
       console.error('폼 제출 오류:', error);
       
+      // 토스트와 에러 다이얼로그 둘 다 표시
       toast({
-        title: mode === 'create' ? "코스 생성 실패" : "코스 수정 실패",
+        title: mode === 'create' ? "❌ 코스 생성 실패" : "❌ 코스 수정 실패",
         description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
         variant: "destructive",
+        duration: 5000,
       });
+      
+      // 에러 다이얼로그도 표시
+      showErrorFromException(
+        error instanceof Error ? error : new Error("알 수 없는 오류가 발생했습니다."),
+        mode === 'create' ? "코스 생성 실패" : "코스 수정 실패"
+      );
     }
   };
 
@@ -330,6 +342,9 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
           </Form>
         </CardContent>
       </Card>
+      
+      {/* 에러 다이얼로그 */}
+      <ErrorDialog errorState={errorState} onClose={hideError} />
     </div>
   );
 }

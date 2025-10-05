@@ -10,7 +10,8 @@ import { EnrollmentResponseSchema, type EnrollmentRequest } from '../lib/dto';
 const createEnrollment = async (data: EnrollmentRequest) => {
   try {
     const response = await apiClient.post('/api/enrollments', data);
-    return EnrollmentResponseSchema.parse(response.data);
+    // 백엔드 응답 구조에 맞춰 data.data 접근
+    return EnrollmentResponseSchema.parse(response.data.data);
   } catch (error) {
     const message = extractApiErrorMessage(error, 'Failed to enroll in course.');
     throw new Error(message);
@@ -81,6 +82,7 @@ export const useEnrollment = () => {
       queryClient.invalidateQueries({ queryKey: ['enrollment-status', variables.courseId] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // 대시보드 쿼리도 무효화
     },
   });
 
@@ -126,6 +128,7 @@ export const useEnrollment = () => {
       queryClient.invalidateQueries({ queryKey: ['enrollment-status', courseId] });
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // 대시보드 쿼리도 무효화
     },
   });
 

@@ -12,10 +12,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useCurrentUser } from '@/features/auth/hooks/useCurrentUser';
 import { useEnrollment } from '../hooks/useEnrollment';
-import { Loader2, UserPlus, UserMinus } from 'lucide-react';
+import { Loader2, UserPlus, UserMinus, CheckCircle, BookOpen, ChevronDown } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ToastAction } from '@/components/ui/toast';
 
 interface EnrollButtonProps {
   courseId: string;
@@ -44,6 +53,7 @@ export const EnrollButton = ({
   const { user, isAuthenticated } = useCurrentUser();
   const { enroll, unenroll, isLoading } = useEnrollment();
   const { toast } = useToast();
+  const router = useRouter();
   const [showUnenrollDialog, setShowUnenrollDialog] = useState(false);
 
   // 인증 상태 확인
@@ -72,15 +82,25 @@ export const EnrollButton = ({
     try {
       await enroll(courseId);
       toast({
-        title: '수강신청 완료',
-        description: `${courseTitle} 수강신청이 완료되었습니다.`,
+        title: '🎉 수강신청 완료!',
+        description: `"${courseTitle}" 수강신청이 완료되었습니다. 이제 학습을 시작할 수 있습니다!`,
+        duration: 5000,
+        action: (
+          <ToastAction 
+            altText="학습하기"
+            onClick={() => router.push('/dashboard')}
+          >
+            학습하기
+          </ToastAction>
+        ),
       });
       onEnrollmentChange?.(true);
     } catch (error) {
       toast({
-        title: '수강신청 실패',
+        title: '❌ 수강신청 실패',
         description: error instanceof Error ? error.message : '수강신청 중 오류가 발생했습니다.',
         variant: 'destructive',
+        duration: 5000,
       });
     }
   };
@@ -104,11 +124,15 @@ export const EnrollButton = ({
     }
   };
 
-  // 버튼 클릭 처리
+  // 학습하기 버튼 클릭 처리
+  const handleGoToLearning = () => {
+    // 학습자 대시보드로 이동
+    router.push('/dashboard');
+  };
+
+  // 버튼 클릭 처리 (수강신청만)
   const handleClick = () => {
-    if (isEnrolled) {
-      setShowUnenrollDialog(true);
-    } else {
+    if (!isEnrolled) {
       handleEnroll();
     }
   };
@@ -130,8 +154,8 @@ export const EnrollButton = ({
     if (isEnrolled) {
       return (
         <>
-          <UserMinus className="h-4 w-4 mr-2" />
-          수강취소
+          <CheckCircle className="h-4 w-4 mr-2" />
+          수강완료
         </>
       );
     }
@@ -144,9 +168,71 @@ export const EnrollButton = ({
     );
   };
 
-  // 버튼 variant 결정
-  const buttonVariant = isEnrolled ? 'outline' : variant;
+  // 버튼 variant 및 스타일 결정
+  const buttonVariant = isEnrolled ? 'default' : variant;
+  const buttonClassName = isEnrolled 
+    ? `${className} bg-green-600 hover:bg-green-700 text-white border-green-600` 
+    : className;
 
+  // 수강완료 상태에서는 드롭다운 메뉴 표시
+  if (isEnrolled) {
+    return (
+      <>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              disabled={isDisabled}
+              size={size}
+              variant={buttonVariant}
+              className={buttonClassName}
+            >
+              {getButtonContent()}
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" className="w-48">
+            <DropdownMenuItem onClick={handleGoToLearning} className="cursor-pointer">
+              <BookOpen className="h-4 w-4 mr-2" />
+              학습하기
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={() => setShowUnenrollDialog(true)} 
+              className="cursor-pointer text-red-600 focus:text-red-600"
+            >
+              <UserMinus className="h-4 w-4 mr-2" />
+              수강취소
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* 수강취소 확인 다이얼로그 */}
+        <AlertDialog open={showUnenrollDialog} onOpenChange={setShowUnenrollDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>수강취소 확인</AlertDialogTitle>
+              <AlertDialogDescription>
+                정말로 "{courseTitle}" 수강을 취소하시겠습니까?
+                <br />
+                수강취소 후에는 학습 진행 상황이 초기화될 수 있습니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleUnenroll}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                수강취소
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  // 수강신청 상태에서는 일반 버튼 표시
   return (
     <>
       <Button
@@ -154,48 +240,11 @@ export const EnrollButton = ({
         disabled={isDisabled}
         size={size}
         variant={buttonVariant}
-        className={className}
+        className={buttonClassName}
       >
         {getButtonContent()}
       </Button>
 
-      {/* 수강취소 확인 다이얼로그 */}
-      <AlertDialog open={showUnenrollDialog} onOpenChange={setShowUnenrollDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>수강취소 확인</AlertDialogTitle>
-            <AlertDialogDescription>
-              정말로 <strong>{courseTitle}</strong> 수강을 취소하시겠습니까?
-              <br />
-              <br />
-              수강취소 시 다음과 같은 영향이 있습니다:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>과제 제출 및 성적 데이터가 집계에서 제외됩니다</li>
-                <li>언제든지 다시 수강신청할 수 있습니다</li>
-              </ul>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>
-              취소
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleUnenroll}
-              disabled={isLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  처리중...
-                </>
-              ) : (
-                '수강취소'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };

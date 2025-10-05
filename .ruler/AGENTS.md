@@ -252,6 +252,50 @@ use following libraries for specific functionalities:
 
 - 백엔드 `respond` 함수는 반드시 `{ data: ... }` 구조로 성공 응답을 반환해야 함. 프론트엔드에서 `response.data.data`로 접근하기 때문.
 - 새로운 API 훅 작성 시 응답 파싱 로직이 백엔드 응답 구조와 일치하는지 확인 필수.
+- 모든 React Query 훅에서 API 응답 파싱은 `response.data.data` 패턴으로 통일 필수. `response.data` 직접 접근 금지.
+- API 훅 작성 시 기존 훅들의 응답 파싱 패턴을 참조하여 일관성 유지. 개별 훅마다 다른 파싱 로직 사용 금지.
+- 새로운 API 훅 개발 시 반드시 기존 훅의 `response.data.data` 패턴 확인 후 동일하게 적용. `{ data }` 구조분해할당 사용 금지.
+- Zod validation 실패 시 응답 파싱 로직부터 점검 필수. 대부분 `response.data` vs `response.data.data` 불일치가 원인.
+- 필터 컴포넌트에서 외부 데이터 의존 시 반드시 해당 데이터를 로딩하는 훅 사용 필수. 빈 배열이나 하드코딩된 데이터 사용 금지.
+- 컴포넌트 간 데이터 전달 시 실제 API 데이터 사용 확인 필수. props로 빈 배열 전달하여 필터/선택 기능 무력화 방지.
+
+## Hydration Error Prevention
+
+- 레이아웃 컴포넌트의 `body` 태그에는 반드시 `suppressHydrationWarning` 속성 추가. 브라우저 확장 프로그램이 DOM을 변경할 수 있기 때문.
+- 백엔드 라우터 등록 시 모든 경로에 `/api` 접두사 필수. 프론트엔드에서 `/api/*` 경로로 요청하기 때문.
+
+## Authentication & Authorization
+
+- API 클라이언트에는 반드시 요청 인터셉터로 Supabase 인증 토큰을 Authorization 헤더에 자동 추가. 백엔드 인증 API 호출 시 401 에러 방지.
+- 백엔드 인증 로직에서 사용자 조회 시 `auth_user_id` 필드 사용 필수. users 테이블 구조와 일치시키기 위함.
+- Supabase Auth의 `user.id`로 `public.users` 테이블 조회 시 반드시 `eq('auth_user_id', user.id)` 사용. `eq('id', user.id)` 사용 금지.
+- 백엔드 API 라우트에서 `supabase.auth.getUser()` 호출 시 반드시 Authorization 헤더에서 토큰 추출 후 `getUser(token)` 사용. 토큰 없이 호출 금지.
+- 새로운 인증 API 라우트 작성 시 기존 라우트의 인증 패턴을 참조하여 일관성 유지. 모든 라우트에서 동일한 토큰 추출 및 검증 로직 사용 필수.
+- 수강신청 등 인증이 필요한 API 라우트에서 `supabase.auth.getUser()` 호출 시 반드시 Authorization 헤더에서 추출한 토큰을 전달. 토큰 없이 호출하면 401 에러 발생.
+- 백엔드 서비스에서 사용자 조회 후 관련 데이터 조회 시 반드시 조회된 사용자의 내부 ID(`user.id`) 사용 필수. Supabase Auth ID를 다른 테이블 조회에 직접 사용 금지.
+- 모든 백엔드 서비스 함수는 일관된 사용자 ID 매핑 패턴 준수 필수: Auth ID → `public.users.auth_user_id` 조회 → 내부 ID로 관련 테이블 조회.
+- 모든 백엔드 API 라우트에서 사용자 관련 데이터 조회 시 반드시 Auth ID를 내부 ID로 변환 후 사용 필수. 직접 Auth ID 사용으로 인한 데이터 불일치 방지.
+- 수강신청/취소 등 상태 변경 뮤테이션 후 반드시 관련된 모든 쿼리 키 무효화 필수. 대시보드, 코스 목록, 상세 페이지 간 데이터 동기화 보장.
+
+## Supabase Query Patterns
+
+- submissions 테이블에서 users 테이블 조인 시 반드시 `users!submissions_learner_id_fkey(...)` 사용. `users!inner(...)`는 조인 관계가 모호하여 에러 발생.
+- Supabase NULL 값 처리 시 Zod 스키마에서 `z.string().nullable().optional()` 사용 필수. NULL이 undefined로 변환되는 경우 대비.
+- React 훅 import 시 정확한 경로 확인 필수. `useToast`는 `@/hooks/use-toast`에서 import, `@/components/ui/` 경로 사용 금지.
+- 배열 데이터 렌더링 시 반드시 null/undefined 체크 후 `.length` 또는 `.map()` 접근 필수. Optional chaining (`?.`) 사용하여 런타임 에러 방지.
+- React Query 훅에서 API 응답 파싱 시 백엔드 `respond` 함수 구조 확인 필수. `response.data.data` 패턴 일관성 유지하여 undefined 접근 방지.
+
+## React 무한 루프 방지
+
+- `useEffect` 의존성 배열에 콜백 함수 포함 금지. 콜백 함수는 `useCallback`으로 메모이제이션 후 의존성에서 제외 필수.
+- 회원가입/인증 후 리다이렉트 시 `await refresh()` 사용 금지. 논블로킹 `refresh()` + `setTimeout` 지연 처리로 상태 충돌 방지.
+- 코스 목록 API에서 로그인 사용자의 수강신청 상태(`isEnrolled`) 포함 필수. 목록과 상세 페이지 간 일관된 사용자 경험 제공.
+- 상태 변화가 있는 UI 컴포넌트는 해당 상태를 반영하는 전용 컴포넌트 사용 필수. 단순 버튼 대신 상태 기반 컴포넌트로 구현.
+- `useToast`의 `action` 속성에는 반드시 `ToastAction` 컴포넌트 사용 필수. 일반 객체 `{label, onClick}` 전달 시 React 렌더링 에러 발생.
+- 기술적 문제로 임시 우회 구현 시 반드시 TODO 주석과 함께 원본 요구사항 명시 필수. 근본 문제 해결 후 즉시 원래 의도대로 복원.
+- 사용자 플로우 변경 시 PRD/Userflow 문서와 일치하는지 확인 필수. 임시 변경이라도 사용자 경험에 미치는 영향 고려하여 최소화.
+- 새로운 페이지 생성 시 반드시 `HomeLayout`으로 감싸서 header, footer 포함한 일관된 레이아웃 적용 필수. 단순 `<div>` 구조만 사용 금지.
+- 모든 사용자 대면 페이지는 동일한 레이아웃 컴포넌트 사용하여 네비게이션과 브랜딩 일관성 유지 필수. 페이지별 개별 레이아웃 구현 금지.
 
 ## Korean Text
 

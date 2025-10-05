@@ -3,11 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookOpen, FileText, Users, Settings, Plus, GraduationCap } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 /**
  * 빠른 작업 컴포넌트
  */
 export function QuickActions() {
+  const router = useRouter();
+
   const quickActionItems = [
     {
       title: "새 코스 만들기",
@@ -16,8 +19,7 @@ export function QuickActions() {
       color: "text-blue-600",
       bgColor: "bg-blue-50 hover:bg-blue-100",
       action: () => {
-        // TODO: 코스 생성 페이지로 이동
-        console.log('Navigate to course creation');
+        router.push('/instructor/courses/new');
       },
     },
     {
@@ -27,8 +29,8 @@ export function QuickActions() {
       color: "text-green-600",
       bgColor: "bg-green-50 hover:bg-green-100",
       action: () => {
-        // TODO: 과제 관리 페이지로 이동
-        console.log('Navigate to assignment management');
+        // 강사의 코스 목록에서 과제 관리 탭으로 이동
+        router.push('/instructor/dashboard?tab=published');
       },
     },
     {
@@ -38,8 +40,8 @@ export function QuickActions() {
       color: "text-orange-600",
       bgColor: "bg-orange-50 hover:bg-orange-100",
       action: () => {
-        // TODO: 채점 페이지로 이동
-        console.log('Navigate to grading');
+        // 채점 페이지로 이동
+        router.push('/grades');
       },
     },
     {
@@ -49,8 +51,14 @@ export function QuickActions() {
       color: "text-purple-600",
       bgColor: "bg-purple-50 hover:bg-purple-100",
       action: () => {
-        // TODO: 수강생 관리 페이지로 이동
-        console.log('Navigate to student management');
+        // 강사 대시보드의 수강생 관리 섹션으로 스크롤
+        const element = document.getElementById('student-management');
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          // 수강생 관리 기능이 구현되면 해당 페이지로 이동
+          router.push('/instructor/dashboard');
+        }
       },
     },
   ];
@@ -118,30 +126,32 @@ function QuickActionItem({
  * 대체 빠른 작업 컴포넌트 (간단한 버튼 스타일)
  */
 export function QuickActionsSimple() {
+  const router = useRouter();
+
   const actions = [
     {
       label: "새 코스 만들기",
       icon: Plus,
       variant: "default" as const,
-      action: () => console.log('Create course'),
+      action: () => router.push('/instructor/courses/new'),
     },
     {
       label: "과제 관리",
       icon: FileText,
       variant: "outline" as const,
-      action: () => console.log('Manage assignments'),
+      action: () => router.push('/instructor/dashboard?tab=published'),
     },
     {
       label: "채점하기",
       icon: GraduationCap,
       variant: "outline" as const,
-      action: () => console.log('Grade submissions'),
+      action: () => router.push('/grades'),
     },
     {
       label: "수강생 관리",
       icon: Users,
       variant: "outline" as const,
-      action: () => console.log('Manage students'),
+      action: () => router.push('/instructor/dashboard'),
     },
   ];
 

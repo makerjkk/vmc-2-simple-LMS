@@ -35,8 +35,8 @@ export const CourseFilters = ({
 }: CourseFiltersProps) => {
   // 로컬 상태
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || '');
-  const [selectedDifficulty, setSelectedDifficulty] = useState(initialFilters.difficulty || '');
+  const [selectedCategory, setSelectedCategory] = useState(initialFilters.category || 'all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState(initialFilters.difficulty || 'all');
   const [selectedSort, setSelectedSort] = useState<SortOption>(initialSort);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -49,30 +49,30 @@ export const CourseFilters = ({
     [searchTerm]
   );
 
-  // 필터 변경 시 부모 컴포넌트에 알림
+  // 필터 변경 시 부모 컴포넌트에 알림 (의존성에서 콜백 함수 제거)
   useEffect(() => {
     const filters: CourseFiltersType = {};
-    if (selectedCategory) filters.category = selectedCategory;
-    if (selectedDifficulty) filters.difficulty = selectedDifficulty as CourseFiltersType['difficulty'];
+    if (selectedCategory && selectedCategory !== 'all') filters.category = selectedCategory;
+    if (selectedDifficulty && selectedDifficulty !== 'all') filters.difficulty = selectedDifficulty as CourseFiltersType['difficulty'];
     
     onFilterChange(filters);
-  }, [selectedCategory, selectedDifficulty, onFilterChange]);
+  }, [selectedCategory, selectedDifficulty]); // onFilterChange 제거
 
-  // 정렬 변경 시 부모 컴포넌트에 알림
+  // 정렬 변경 시 부모 컴포넌트에 알림 (의존성에서 콜백 함수 제거)
   useEffect(() => {
     onSortChange(selectedSort);
-  }, [selectedSort, onSortChange]);
+  }, [selectedSort]); // onSortChange 제거
 
   // 필터 초기화
   const handleReset = () => {
     setSearchTerm('');
-    setSelectedCategory('');
-    setSelectedDifficulty('');
+    setSelectedCategory('all');
+    setSelectedDifficulty('all');
     setSelectedSort('latest');
   };
 
   // 활성 필터 개수 계산
-  const activeFiltersCount = [selectedCategory, selectedDifficulty].filter(Boolean).length;
+  const activeFiltersCount = [selectedCategory, selectedDifficulty].filter(value => value && value !== 'all').length;
 
   return (
     <Card>
@@ -131,7 +131,7 @@ export const CourseFilters = ({
                       <SelectValue placeholder="카테고리 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">전체 카테고리</SelectItem>
+                      <SelectItem value="all">전체 카테고리</SelectItem>
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
@@ -149,7 +149,7 @@ export const CourseFilters = ({
                       <SelectValue placeholder="난이도 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">전체 난이도</SelectItem>
+                      <SelectItem value="all">전체 난이도</SelectItem>
                       <SelectItem value="beginner">초급</SelectItem>
                       <SelectItem value="intermediate">중급</SelectItem>
                       <SelectItem value="advanced">고급</SelectItem>

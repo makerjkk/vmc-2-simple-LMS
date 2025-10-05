@@ -110,13 +110,15 @@ export const OnboardingForm = React.forwardRef<HTMLDivElement, OnboardingFormPro
           });
         }
       } catch (error) {
+        // emailCheckError를 의존성에서 제거하고 직접 에러 메시지 사용
+        const errorMessage = error instanceof Error ? error.message : "이메일 확인 중 오류가 발생했습니다.";
         toast({
           title: "오류 발생",
-          description: emailCheckError || "이메일 확인 중 오류가 발생했습니다.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
-    }, [checkEmail, emailCheckError, accountForm, toast]);
+    }, [checkEmail, accountForm, toast]);
 
     // 1단계: 계정 정보 제출
     const handleAccountSubmit = (data: AccountFormData) => {
@@ -136,17 +138,42 @@ export const OnboardingForm = React.forwardRef<HTMLDivElement, OnboardingFormPro
       setCurrentStep(2);
     };
 
-    // 2단계: 역할 선택
-    const handleRoleSelect = (role: UserRole) => {
+    // 2단계: 역할 선택 (자동 이동 제거)
+    const handleRoleSelect = useCallback((role: UserRole) => {
       setFormData(prev => ({
         ...prev,
         role,
       }));
-      setCurrentStep(3);
-    };
+      // 자동으로 다음 단계로 이동하지 않고 사용자가 "다음 단계" 버튼을 클릭하도록 변경
+    }, []);
 
     // 3단계: 프로필 정보 제출 및 최종 회원가입
     const handleProfileSubmit = async (profile: Profile) => {
+      // 회원가입 직전 이메일 재검증
+      try {
+        const emailRecheck = await checkEmail(formData.email!);
+        if (emailRecheck.exists) {
+          toast({
+            title: "이메일 중복 오류",
+            description: "다른 사용자가 이미 이 이메일을 사용하고 있습니다. 1단계로 돌아가서 다른 이메일을 사용해주세요.",
+            variant: "destructive",
+            duration: 7000,
+          });
+          // 1단계로 돌아가기
+          setCurrentStep(1);
+          // 이메일 필드 초기화 및 에러 표시
+          accountForm.setValue("email", "");
+          accountForm.setError("email", {
+            type: "manual",
+            message: "이미 사용 중인 이메일입니다."
+          });
+          setFormData(prev => ({ ...prev, email: undefined }));
+          return;
+        }
+      } catch (recheckError) {
+        console.warn('이메일 재검증 실패, 회원가입 계속 진행:', recheckError);
+      }
+
       const completeData: SignupRequest = {
         email: formData.email!,
         password: formData.password!,
@@ -160,21 +187,38 @@ export const OnboardingForm = React.forwardRef<HTMLDivElement, OnboardingFormPro
           title: "회원가입 완료",
           description: "환영합니다! 잠시 후 페이지가 이동됩니다.",
         });
+        // 성공 후 추가 상태 업데이트 방지
+        return;
       } catch (error) {
-        toast({
-          title: "회원가입 실패",
-          description: signupError || "회원가입 중 오류가 발생했습니다.",
-          variant: "destructive",
-        });
+        // 이메일 중복 에러 특별 처리
+        if (signupError?.includes("이미 사용 중인 이메일") || signupError?.includes("EMAIL_ALREADY_EXISTS")) {
+          toast({
+            title: "이메일 중복 오류",
+            description: "다른 사용자가 이미 이 이메일을 사용하고 있습니다. 1단계로 돌아가서 다른 이메일을 사용해주세요.",
+            variant: "destructive",
+            duration: 7000,
+          });
+          // 1단계로 돌아가기
+          setCurrentStep(1);
+          // 이메일 필드 초기화
+          accountForm.setValue("email", "");
+          setFormData(prev => ({ ...prev, email: undefined }));
+        } else {
+          toast({
+            title: "회원가입 실패",
+            description: signupError || "회원가입 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        }
       }
     };
 
     // 이전 단계로 이동
-    const handlePrevStep = () => {
+    const handlePrevStep = useCallback(() => {
       if (currentStep > 1) {
         setCurrentStep(currentStep - 1);
       }
-    };
+    }, [currentStep]);
 
     return (
       <div ref={ref} className={className}>
@@ -303,7 +347,11 @@ export const OnboardingForm = React.forwardRef<HTMLDivElement, OnboardingFormPro
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => formData.role && setCurrentStep(3)}
+                    onClick={() => {
+                      if (formData.role && currentStep === 2) {
+                        setCurrentStep(3);
+                      }
+                    }}
                     disabled={!formData.role}
                     className="flex-1"
                   >
