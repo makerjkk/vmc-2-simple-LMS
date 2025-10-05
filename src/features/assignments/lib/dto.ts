@@ -26,6 +26,10 @@ export type {
   SubmissionsForGradingResponse,
   SubmissionParams,
   Pagination,
+  // 학습자용 타입 추가
+  LearnerAssignmentsQuery,
+  LearnerAssignmentResponse,
+  LearnerAssignmentsResponse,
 } from '../backend/schema';
 
 // 백엔드 스키마 재노출
@@ -51,4 +55,8 @@ export {
   SubmissionsForGradingResponseSchema,
   SubmissionParamsSchema,
   PaginationSchema,
+  // 학습자용 스키마 추가
+  LearnerAssignmentsQuerySchema,
+  LearnerAssignmentResponseSchema,
+  LearnerAssignmentsResponseSchema,
 } from '../backend/schema';

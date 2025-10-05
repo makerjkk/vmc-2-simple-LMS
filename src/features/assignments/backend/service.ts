@@ -971,25 +971,36 @@ export const updateAssignmentStatus = async (
  */
 export const getInstructorAssignments = async (
   client: SupabaseClient,
-  instructorId: string,
+  authUserId: string,
   params: InstructorAssignmentsQuery
 ): Promise<HandlerResult<InstructorAssignmentsResponse, string, unknown>> => {
   try {
     const { courseId, status, page = 1, limit = 20 } = params;
 
-    // 1. 코스 소유권 검증
+    // 1. Auth ID를 내부 사용자 ID로 변환
+    const { data: userData, error: userError } = await client
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .single();
+
+    if (userError || !userData) {
+      return failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.');
+    }
+
+    // 2. 코스 소유권 검증
     const { data: courseData, error: courseError } = await client
       .from('courses')
       .select('id')
       .eq('id', courseId)
-      .eq('instructor_id', instructorId)
+      .eq('instructor_id', userData.id)
       .single();
 
     if (courseError || !courseData) {
       return failure(403, assignmentErrorCodes.notCourseOwner, '해당 코스에 대한 권한이 없습니다.');
     }
 
-    // 2. 전체 개수 조회
+    // 3. 전체 개수 조회
     let countQuery = client
       .from('assignments')
       .select('id', { count: 'exact', head: true })
@@ -1008,7 +1019,7 @@ export const getInstructorAssignments = async (
     const total = count || 0;
     const totalPages = Math.ceil(total / limit);
 
-    // 3. 과제 목록 조회
+    // 4. 과제 목록 조회
     let assignmentsQuery = client
       .from('assignments')
       .select(`
@@ -1629,6 +1640,188 @@ export const getSubmissionDetailForGrading = async (
       500,
       gradingErrorCodes.databaseError,
       '제출물 상세 조회 중 오류가 발생했습니다.',
+      error
+    );
+  }
+};
+
+// ===== 학습자용 서비스 함수들 =====
+
+/**
+ * 학습자용 과제 목록 조회 서비스
+ * 수강 중인 모든 코스의 과제를 조회하고 제출 상태 포함
+ */
+export const getLearnerAssignments = async (
+  client: SupabaseClient,
+  authUserId: string,
+  params: LearnerAssignmentsQuery
+): Promise<HandlerResult<LearnerAssignmentsResponse, string, unknown>> => {
+  try {
+    const { status = 'all', courseId, page = 1, limit = 20 } = params;
+
+    // 1. Auth ID를 내부 사용자 ID로 변환
+    const { data: userData, error: userError } = await client
+      .from('users')
+      .select('id, role')
+      .eq('auth_user_id', authUserId)
+      .single();
+
+    if (userError || !userData) {
+      return failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.');
+    }
+
+    if (userData.role !== 'learner') {
+      return failure(403, assignmentErrorCodes.unauthorized, 'Learner 권한이 필요합니다.');
+    }
+
+    // 2. 수강 중인 코스 ID 목록 조회
+    let enrollmentQuery = client
+      .from('enrollments')
+      .select('course_id')
+      .eq('learner_id', userData.id)
+      .eq('is_active', true);
+
+    if (courseId) {
+      enrollmentQuery = enrollmentQuery.eq('course_id', courseId);
+    }
+
+    const { data: enrollments, error: enrollmentError } = await enrollmentQuery;
+
+    if (enrollmentError) {
+      return failure(500, assignmentErrorCodes.fetchError, '수강 정보 조회에 실패했습니다.');
+    }
+
+    if (!enrollments || enrollments.length === 0) {
+      return success({
+        assignments: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        stats: { total: 0, upcoming: 0, submitted: 0, graded: 0, overdue: 0 },
+      });
+    }
+
+    const courseIds = enrollments.map(e => e.course_id);
+
+    // 3. 과제 목록 조회 (published만)
+    let assignmentsQuery = client
+      .from('assignments')
+      .select(`
+        id,
+        course_id,
+        title,
+        description,
+        due_date,
+        score_weight,
+        allow_late_submission,
+        allow_resubmission,
+        status,
+        created_at,
+        courses!inner(
+          id,
+          title
+        )
+      `)
+      .eq('status', 'published')
+      .in('course_id', courseIds);
+
+    // 상태별 필터링
+    const now = new Date();
+    if (status === 'upcoming') {
+      assignmentsQuery = assignmentsQuery.gte('due_date', now.toISOString());
+    } else if (status === 'overdue') {
+      assignmentsQuery = assignmentsQuery.lt('due_date', now.toISOString());
+    }
+
+    const { data: assignmentsData, error: assignmentsError } = await assignmentsQuery
+      .order('due_date', { ascending: true });
+
+    if (assignmentsError) {
+      return failure(500, assignmentErrorCodes.fetchError, '과제 목록 조회에 실패했습니다.');
+    }
+
+    if (!assignmentsData || assignmentsData.length === 0) {
+      return success({
+        assignments: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+        stats: { total: 0, upcoming: 0, submitted: 0, graded: 0, overdue: 0 },
+      });
+    }
+
+    // 4. 제출물 정보 조회
+    const assignmentIds = assignmentsData.map(a => a.id);
+    const { data: submissions } = await client
+      .from('submissions')
+      .select('assignment_id, status, score, feedback, submitted_at, graded_at, is_late')
+      .eq('learner_id', userData.id)
+      .in('assignment_id', assignmentIds);
+
+    const submissionMap = new Map(
+      submissions?.map(s => [s.assignment_id, s]) || []
+    );
+
+    // 5. 응답 데이터 구성
+    let filteredAssignments = assignmentsData.map(assignment => {
+      const course = assignment.courses as any;
+      const submission = submissionMap.get(assignment.id);
+      const dueDate = new Date(assignment.due_date);
+      const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      return {
+        id: assignment.id,
+        courseId: assignment.course_id,
+        courseTitle: course.title,
+        title: assignment.title,
+        description: assignment.description,
+        dueDate: assignment.due_date,
+        scoreWeight: assignment.score_weight,
+        allowLateSubmission: assignment.allow_late_submission,
+        allowResubmission: assignment.allow_resubmission,
+        status: assignment.status as 'draft' | 'published' | 'closed',
+        isSubmitted: !!submission,
+        submissionStatus: submission?.status || 'not_submitted',
+        score: submission?.score || null,
+        feedback: submission?.feedback || null,
+        submittedAt: submission?.submitted_at || null,
+        gradedAt: submission?.graded_at || null,
+        isLate: submission?.is_late || null,
+        daysLeft,
+        createdAt: assignment.created_at,
+      } as LearnerAssignmentResponse;
+    });
+
+    // 6. 상태별 추가 필터링
+    if (status === 'submitted') {
+      filteredAssignments = filteredAssignments.filter(a => a.isSubmitted && a.submissionStatus === 'submitted');
+    } else if (status === 'graded') {
+      filteredAssignments = filteredAssignments.filter(a => a.submissionStatus === 'graded');
+    }
+
+    // 7. 통계 계산
+    const stats = {
+      total: filteredAssignments.length,
+      upcoming: filteredAssignments.filter(a => a.daysLeft >= 0 && !a.isSubmitted).length,
+      submitted: filteredAssignments.filter(a => a.submissionStatus === 'submitted').length,
+      graded: filteredAssignments.filter(a => a.submissionStatus === 'graded').length,
+      overdue: filteredAssignments.filter(a => a.daysLeft < 0 && !a.isSubmitted).length,
+    };
+
+    // 8. 페이지네이션 적용
+    const total = filteredAssignments.length;
+    const totalPages = Math.ceil(total / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedAssignments = filteredAssignments.slice(startIndex, endIndex);
+
+    return success({
+      assignments: paginatedAssignments,
+      pagination: { page, limit, total, totalPages },
+      stats,
+    });
+
+  } catch (error) {
+    return failure(
+      500,
+      assignmentErrorCodes.databaseError,
+      '과제 목록 조회 중 오류가 발생했습니다.',
       error
     );
   }

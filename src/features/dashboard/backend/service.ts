@@ -46,7 +46,7 @@ export const getDashboardData = async (
       return failure(500, dashboardErrorCodes.fetchError, '코스 정보 조회에 실패했습니다.');
     }
 
-    // 3. 마감 임박 과제 조회 (7일 이내)
+    // 3. 마감 임박 과제 조회 (30일 이내)
     const upcomingAssignmentsResult = await getUpcomingAssignments(client, user.id);
     if (!upcomingAssignmentsResult.ok) {
       return failure(500, dashboardErrorCodes.fetchError, '마감 임박 과제 조회에 실패했습니다.');
@@ -113,7 +113,7 @@ const getEnrolledCoursesWithProgress = async (
       // 해당 코스의 published 과제 수 조회
       const { data: assignments, error: assignmentError } = await client
         .from('assignments')
-        .select('id')
+        .select('id, title, status, due_date')
         .eq('course_id', course.id)
         .eq('status', 'published');
 
@@ -157,15 +157,15 @@ const getEnrolledCoursesWithProgress = async (
 };
 
 /**
- * 마감 임박 과제 조회 (7일 이내 미제출 과제)
+ * 마감 임박 과제 조회 (30일 이내 미제출 과제)
  */
 const getUpcomingAssignments = async (
   client: SupabaseClient,
   userId: string
 ): Promise<HandlerResult<UpcomingAssignment[], string, unknown>> => {
   try {
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
     // 먼저 수강 중인 코스 ID 목록 조회
     const { data: enrollments, error: enrollmentError } = await client
@@ -192,6 +192,7 @@ const getUpcomingAssignments = async (
         title,
         due_date,
         course_id,
+        status,
         courses!inner(
           id,
           title
@@ -199,7 +200,7 @@ const getUpcomingAssignments = async (
       `)
       .eq('status', 'published')
       .gte('due_date', new Date().toISOString())
-      .lte('due_date', sevenDaysFromNow.toISOString())
+      .lte('due_date', thirtyDaysFromNow.toISOString())
       .in('course_id', courseIds);
 
     if (assignmentError) {
@@ -227,12 +228,14 @@ const getUpcomingAssignments = async (
       .filter(assignment => !submittedAssignmentIds.has(assignment.id))
       .map(assignment => {
         const assignmentData = assignment as any;
+        // due_date를 ISO 8601 형식으로 변환
+        const dueDate = new Date(assignmentData.due_date).toISOString();
         return {
           id: assignmentData.id,
           title: assignmentData.title,
           courseTitle: assignmentData.courses?.title || '',
           courseId: assignmentData.course_id,
-          dueDate: assignmentData.due_date,
+          dueDate,
           daysLeft: getDaysUntilDue(assignmentData.due_date),
         };
       })
@@ -289,6 +292,8 @@ const getRecentFeedback = async (
 
     const recentFeedback: RecentFeedback[] = submissions.map(submission => {
       const submissionData = submission as any;
+      // graded_at을 ISO 8601 형식으로 변환
+      const feedbackDate = submissionData.graded_at ? new Date(submissionData.graded_at).toISOString() : new Date().toISOString();
       return {
         id: submissionData.id,
         assignmentTitle: submissionData.assignments?.title || '',
@@ -296,7 +301,7 @@ const getRecentFeedback = async (
         courseTitle: submissionData.assignments?.courses?.title || '',
         score: submissionData.score || 0,
         feedback: submissionData.feedback || '',
-        feedbackDate: submissionData.graded_at || '',
+        feedbackDate,
       };
     });
 

@@ -16,6 +16,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { assignmentFormSchema, type AssignmentFormData } from '@/lib/validation/assignment';
 import { validateScoreWeightTotal } from '@/lib/utils/assignment';
@@ -183,30 +185,60 @@ export function AssignmentForm({
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>마감일 *</FormLabel>
-                      <FormControl>
-                        <Button
-                          variant="outline"
-                          className="w-full pl-3 text-left font-normal"
-                          type="button"
-                          onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'datetime-local';
-                            input.value = format(field.value, "yyyy-MM-dd'T'HH:mm");
-                            input.onchange = (e) => {
-                              const target = e.target as HTMLInputElement;
-                              field.onChange(new Date(target.value));
-                            };
-                            input.click();
-                          }}
-                        >
-                          {field.value ? (
-                            format(field.value, 'yyyy년 M월 d일 HH:mm', { locale: ko })
-                          ) : (
-                            <span>마감일을 선택하세요</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className="w-full pl-3 text-left font-normal"
+                              type="button"
+                            >
+                              {field.value ? (
+                                format(field.value, 'yyyy년 M월 d일 HH:mm', { locale: ko })
+                              ) : (
+                                <span>마감일을 선택하세요</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-3 space-y-3">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                if (date) {
+                                  // 기존 시간 정보 유지하면서 날짜만 변경
+                                  const newDate = new Date(date);
+                                  const currentTime = field.value || new Date();
+                                  newDate.setHours(currentTime.getHours());
+                                  newDate.setMinutes(currentTime.getMinutes());
+                                  field.onChange(newDate);
+                                }
+                              }}
+                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                              initialFocus
+                            />
+                            <div className="border-t pt-3">
+                              <div className="flex items-center space-x-2">
+                                <label className="text-sm font-medium">시간:</label>
+                                <Input
+                                  type="time"
+                                  value={field.value ? format(field.value, 'HH:mm') : '23:59'}
+                                  onChange={(e) => {
+                                    const [hours, minutes] = e.target.value.split(':');
+                                    const newDate = new Date(field.value || new Date());
+                                    newDate.setHours(parseInt(hours), parseInt(minutes));
+                                    field.onChange(newDate);
+                                  }}
+                                  className="w-24"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <FormDescription>
                         과제 제출 마감일과 시간을 설정하세요.
                       </FormDescription>

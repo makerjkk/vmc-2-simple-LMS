@@ -40,6 +40,8 @@ import {
   gradeSubmission,
   getSubmissionsForGrading,
   getSubmissionDetailForGrading,
+  // 학습자용 서비스 추가
+  getLearnerAssignments,
 } from './service';
 import {
   assignmentErrorCodes,
@@ -54,6 +56,70 @@ import { registerSchedulerRoutes } from './scheduler-route';
  * 과제 관련 API 라우터 등록
  */
 export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
+  // GET /api/assignments - 학습자용 과제 목록 조회
+  app.get('/api/assignments', async (c) => {
+    const logger = getLogger(c);
+    const supabase = getSupabase(c);
+
+    try {
+      // 인증 헤더에서 토큰 추출
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      // JWT 토큰으로 사용자 정보 조회
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Invalid authentication')
+        );
+      }
+
+      // 쿼리 파라미터 파싱
+      const query = c.req.query();
+      const params = {
+        status: query.status as 'all' | 'upcoming' | 'submitted' | 'graded' | 'overdue' | undefined,
+        courseId: query.courseId,
+        page: query.page ? parseInt(query.page, 10) : 1,
+        limit: query.limit ? parseInt(query.limit, 10) : 20,
+      };
+
+      // 학습자용 과제 목록 조회 서비스 호출
+      const result = await getLearnerAssignments(supabase, user.id, params);
+
+      if (!result.ok) {
+        logger.error('Get learner assignments failed', {
+          error: result.error,
+          userId: user.id,
+          params,
+        });
+      } else {
+        logger.info('Learner assignments fetched successfully', {
+          userId: user.id,
+          assignmentsCount: result.data.assignments.length,
+          total: result.data.pagination.total,
+        });
+      }
+
+      return respond(c, result);
+
+    } catch (error) {
+      logger.error('Get learner assignments route error:', error);
+      return respond(
+        c,
+        failure(500, assignmentErrorCodes.databaseError, 'Internal server error')
+      );
+    }
+  });
+
   // GET /api/assignments/:id - 과제 상세 조회
   app.get('/assignments/:id', async (c) => {
     const logger = getLogger(c);
@@ -326,7 +392,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   // ===== 강사용 라우트들 =====
 
   // POST /api/instructor/courses/:courseId/assignments - 과제 생성
-  app.post('/instructor/courses/:courseId/assignments', async (c) => {
+  app.post('/api/instructor/courses/:courseId/assignments', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -365,7 +431,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -374,11 +450,25 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 서비스 호출
       const result = await createAssignmentForInstructor(
         supabase,
         parsedParams.data.courseId,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         parsedBody.data
       );
 
@@ -394,7 +484,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // PUT /api/instructor/assignments/:id - 과제 수정
-  app.put('/instructor/assignments/:id', async (c) => {
+  app.put('/api/instructor/assignments/:id', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -433,7 +523,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -442,11 +542,25 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 서비스 호출
       const result = await updateAssignmentForInstructor(
         supabase,
         parsedParams.data.id,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         parsedBody.data
       );
 
@@ -462,7 +576,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // DELETE /api/instructor/assignments/:id - 과제 삭제
-  app.delete('/instructor/assignments/:id', async (c) => {
+  app.delete('/api/instructor/assignments/:id', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -485,7 +599,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -494,11 +618,25 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 서비스 호출
       const result = await deleteAssignmentForInstructor(
         supabase,
         parsedParams.data.id,
-        user.id
+        userData.id // 내부 사용자 ID 사용
       );
 
       return respond(c, result);
@@ -513,7 +651,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // PATCH /api/instructor/assignments/:id/status - 상태 전환
-  app.patch('/instructor/assignments/:id/status', async (c) => {
+  app.patch('/api/instructor/assignments/:id/status', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -552,7 +690,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -561,11 +709,25 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 서비스 호출
       const result = await updateAssignmentStatus(
         supabase,
         parsedParams.data.id,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         parsedBody.data
       );
 
@@ -581,7 +743,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/instructor/courses/:courseId/assignments - 과제 목록 조회
-  app.get('/instructor/courses/:courseId/assignments', async (c) => {
+  app.get('/api/instructor/courses/:courseId/assignments', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -609,7 +771,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -637,7 +809,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/instructor/assignments/:id/submissions - 제출물 목록 조회
-  app.get('/instructor/assignments/:id/submissions', async (c) => {
+  app.get('/api/instructor/assignments/:id/submissions', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -666,7 +838,17 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       }
 
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const authHeader = c.req.header('Authorization');
+      const token = authHeader?.replace('Bearer ', '');
+      
+      if (!token) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, 'Authentication required')
+        );
+      }
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
       if (authError || !user) {
         return respond(
@@ -675,11 +857,25 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, assignmentErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 서비스 호출
       const result = await getAssignmentSubmissions(
         supabase,
         parsedParams.data.assignmentId,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         parsedParams.data
       );
 
@@ -697,7 +893,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   // ===== 채점 관련 API 라우트 =====
 
   // POST /api/instructor/submissions/:submissionId/grade - 제출물 채점
-  app.post('/instructor/submissions/:submissionId/grade', async (c) => {
+  app.post('/api/instructor/submissions/:submissionId/grade', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -718,6 +914,20 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         return respond(
           c,
           failure(401, gradingErrorCodes.unauthorized, '유효하지 않은 인증 정보입니다.')
+        );
+      }
+
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, gradingErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
         );
       }
 
@@ -747,7 +957,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       const result = await gradeSubmission(
         supabase,
         parsedParams.data.submissionId,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         parsedBody.data
       );
 
@@ -763,7 +973,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/instructor/assignments/:assignmentId/submissions/grading - 채점용 제출물 목록 조회
-  app.get('/instructor/assignments/:assignmentId/submissions/grading', async (c) => {
+  app.get('/api/instructor/assignments/:assignmentId/submissions/grading', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -784,6 +994,20 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         return respond(
           c,
           failure(401, gradingErrorCodes.unauthorized, '유효하지 않은 인증 정보입니다.')
+        );
+      }
+
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, gradingErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
         );
       }
 
@@ -809,7 +1033,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       const result = await getSubmissionsForGrading(
         supabase,
         assignmentId,
-        user.id,
+        userData.id, // 내부 사용자 ID 사용
         params
       );
 
@@ -825,7 +1049,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
   });
 
   // GET /api/instructor/submissions/:submissionId/grading - 채점용 제출물 상세 조회
-  app.get('/instructor/submissions/:submissionId/grading', async (c) => {
+  app.get('/api/instructor/submissions/:submissionId/grading', async (c) => {
     const logger = getLogger(c);
     const supabase = getSupabase(c);
 
@@ -849,6 +1073,20 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
         );
       }
 
+      // Auth ID를 내부 사용자 ID로 변환
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (userError || !userData) {
+        return respond(
+          c,
+          failure(401, gradingErrorCodes.unauthorized, '사용자를 찾을 수 없습니다.')
+        );
+      }
+
       // 파라미터 검증
       const submissionId = c.req.param('submissionId');
       const parsedParams = SubmissionParamsSchema.safeParse({ submissionId });
@@ -864,7 +1102,7 @@ export const registerAssignmentsRoutes = (app: Hono<AppEnv>) => {
       const result = await getSubmissionDetailForGrading(
         supabase,
         parsedParams.data.submissionId,
-        user.id
+        userData.id // 내부 사용자 ID 사용
       );
 
       return respond(c, result);

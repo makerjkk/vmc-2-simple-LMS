@@ -151,6 +151,81 @@ export const InstructorAssignmentsQuerySchema = z.object({
 
 export type InstructorAssignmentsQuery = z.infer<typeof InstructorAssignmentsQuerySchema>;
 
+// ===== 학습자용 스키마 =====
+
+/**
+ * 학습자용 과제 목록 조회 쿼리 파라미터
+ */
+export const LearnerAssignmentsQuerySchema = z.object({
+  status: z.enum(['all', 'upcoming', 'submitted', 'graded', 'overdue']).optional(),
+  courseId: z.string().uuid().optional(),
+  page: z.number().int().positive().optional(),
+  limit: z.number().int().positive().max(100).optional(),
+});
+
+export type LearnerAssignmentsQuery = z.infer<typeof LearnerAssignmentsQuerySchema>;
+
+/**
+ * 학습자용 과제 응답 스키마
+ */
+export const LearnerAssignmentResponseSchema = z.object({
+  id: z.string(),
+  courseId: z.string(),
+  courseTitle: z.string(),
+  title: z.string(),
+  description: z.string(),
+  dueDate: z.string(),
+  scoreWeight: z.number(),
+  allowLateSubmission: z.boolean(),
+  allowResubmission: z.boolean(),
+  status: z.enum(['draft', 'published', 'closed']),
+  isSubmitted: z.boolean(),
+  submissionStatus: z.enum(['not_submitted', 'submitted', 'graded', 'resubmission_required']).nullable(),
+  score: z.number().nullable(),
+  feedback: z.string().nullable(),
+  submittedAt: z.string().nullable(),
+  gradedAt: z.string().nullable(),
+  isLate: z.boolean().nullable(),
+  daysLeft: z.number(),
+  createdAt: z.string(),
+});
+
+export type LearnerAssignmentResponse = z.infer<typeof LearnerAssignmentResponseSchema>;
+
+/**
+ * 학습자용 과제 목록 응답 스키마
+ */
+export const LearnerAssignmentsResponseSchema = z.object({
+  assignments: z.array(LearnerAssignmentResponseSchema),
+  pagination: z.object({
+    page: z.number().int().positive(),
+    limit: z.number().int().positive(),
+    total: z.number().int().min(0),
+    totalPages: z.number().int().min(0),
+  }),
+  stats: z.object({
+    total: z.number(),
+    upcoming: z.number(),
+    submitted: z.number(),
+    graded: z.number(),
+    overdue: z.number(),
+  }),
+});
+
+/**
+ * 페이지네이션 스키마
+ */
+export const PaginationSchema = z.object({
+  page: z.number().int().positive(),
+  limit: z.number().int().positive(),
+  total: z.number().int().min(0),
+  totalPages: z.number().int().min(0),
+});
+
+export type Pagination = z.infer<typeof PaginationSchema>;
+
+export type LearnerAssignmentsResponse = z.infer<typeof LearnerAssignmentsResponseSchema>;
+
 // 강사용 과제 응답 스키마
 export const InstructorAssignmentResponseSchema = z.object({
   id: z.string().uuid(),
@@ -315,10 +390,4 @@ export const SubmissionParamsSchema = z.object({
 
 export type SubmissionParams = z.infer<typeof SubmissionParamsSchema>;
 
-// 페이지네이션 스키마 (공통)
-export const PaginationSchema = z.object({
-  page: z.number().int().min(1).default(1),
-  limit: z.number().int().min(1).max(100).default(20),
-});
-
-export type Pagination = z.infer<typeof PaginationSchema>;
+// 페이지네이션 스키마는 위에서 이미 정의됨

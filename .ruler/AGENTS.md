@@ -276,6 +276,8 @@ use following libraries for specific functionalities:
 - 모든 백엔드 서비스 함수는 일관된 사용자 ID 매핑 패턴 준수 필수: Auth ID → `public.users.auth_user_id` 조회 → 내부 ID로 관련 테이블 조회.
 - 모든 백엔드 API 라우트에서 사용자 관련 데이터 조회 시 반드시 Auth ID를 내부 ID로 변환 후 사용 필수. 직접 Auth ID 사용으로 인한 데이터 불일치 방지.
 - 수강신청/취소 등 상태 변경 뮤테이션 후 반드시 관련된 모든 쿼리 키 무효화 필수. 대시보드, 코스 목록, 상세 페이지 간 데이터 동기화 보장.
+- 새로운 백엔드 API 라우트 생성 시 반드시 Authorization 헤더에서 토큰 추출 후 `supabase.auth.getUser(token)` 호출 필수. 토큰 없이 호출 시 401 에러 발생.
+- 백엔드 서비스 함수에서 Auth ID 매개변수 받을 때 반드시 `public.users` 테이블 조회로 내부 ID 변환 후 비즈니스 로직 수행 필수.
 
 ## Supabase Query Patterns
 
@@ -296,6 +298,9 @@ use following libraries for specific functionalities:
 - 사용자 플로우 변경 시 PRD/Userflow 문서와 일치하는지 확인 필수. 임시 변경이라도 사용자 경험에 미치는 영향 고려하여 최소화.
 - 새로운 페이지 생성 시 반드시 `HomeLayout`으로 감싸서 header, footer 포함한 일관된 레이아웃 적용 필수. 단순 `<div>` 구조만 사용 금지.
 - 모든 사용자 대면 페이지는 동일한 레이아웃 컴포넌트 사용하여 네비게이션과 브랜딩 일관성 유지 필수. 페이지별 개별 레이아웃 구현 금지.
+
+- 백엔드 서비스에서 데이터베이스 날짜 필드 클라이언트 전송 시 반드시 `new Date(dateField).toISOString()` 변환 필수. Zod datetime 검증 통과 보장.
+- Supabase 조회 날짜 필드(`due_date`, `graded_at` 등)는 ISO 8601 변환 없이 직접 사용 금지. 스키마 검증 실패 원인.
 
 ## Korean Text
 

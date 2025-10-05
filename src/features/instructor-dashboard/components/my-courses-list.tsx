@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Users, Star, Edit, Eye, Archive, Plus, RefreshCw } from "lucide-react";
+import { BookOpen, Users, Star, Edit, Eye, Archive, Plus, RefreshCw, FileText } from "lucide-react";
 import { useInstructorDashboard } from "../hooks/useInstructorDashboard";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUpdateCourseStatus } from "@/features/courses/hooks/useUpdateCourseStatus";
@@ -196,6 +196,16 @@ function CourseCard({ course }: { course: InstructorCourse }) {
     }
   };
 
+  // 과제 관리 페이지로 이동
+  const handleAssignments = () => {
+    console.log('Navigating to assignments page:', `/instructor/courses/${course.id}/assignments`);
+    try {
+      router.push(`/instructor/courses/${course.id}/assignments`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
+
   // 코스 상태 변경
   const handleStatusChange = (newStatus: 'draft' | 'published' | 'archived') => {
     updateCourseStatusMutation.mutate({
@@ -241,7 +251,17 @@ function CourseCard({ course }: { course: InstructorCourse }) {
               disabled={updateCourseStatusMutation.isPending}
             >
               <Edit className="h-3 w-3" />
-              관리
+              편집
+            </Button>
+            <Button 
+              size="sm" 
+              variant="default" 
+              className="gap-1"
+              onClick={handleAssignments}
+              disabled={updateCourseStatusMutation.isPending}
+            >
+              <FileText className="h-3 w-3" />
+              과제 관리
             </Button>
             <Button 
               size="sm" 

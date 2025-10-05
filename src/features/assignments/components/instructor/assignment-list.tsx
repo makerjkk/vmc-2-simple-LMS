@@ -5,7 +5,6 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { 
   MoreHorizontal, 
-  Plus, 
   Edit, 
   Trash2, 
   Eye, 
@@ -257,10 +256,6 @@ export function AssignmentList({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-10 w-24" />
-        </div>
         <Skeleton className="h-10 w-full" />
         <div className="grid gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -297,17 +292,6 @@ export function AssignmentList({
 
   return (
     <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">과제 관리</h2>
-        {onCreateAssignment && (
-          <Button onClick={onCreateAssignment}>
-            <Plus className="w-4 h-4 mr-2" />
-            새 과제 만들기
-          </Button>
-        )}
-      </div>
-
       {/* 상태별 탭 */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
         <TabsList>
