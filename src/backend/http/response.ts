@@ -50,7 +50,8 @@ export const respond = <TData, TCode extends string, TDetails = unknown>(
   result: HandlerResult<TData, TCode, TDetails>,
 ) => {
   if (result.ok) {
-    return c.json(result.data, result.status);
+    // 성공 시 일관된 응답 구조: { data: ... }
+    return c.json({ data: result.data }, result.status);
   }
 
   const errorResult = result as ErrorResult<TCode, TDetails>;

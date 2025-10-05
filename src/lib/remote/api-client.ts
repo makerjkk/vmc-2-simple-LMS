@@ -1,10 +1,12 @@
 import axios, { isAxiosError } from "axios";
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "",
+  // Next.js 환경에서는 상대 경로로 API 호출 (기본값: 빈 문자열)
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10초 타임아웃 설정
 });
 
 type ErrorPayload = {

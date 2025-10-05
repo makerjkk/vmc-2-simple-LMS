@@ -248,6 +248,11 @@ use following libraries for specific functionalities:
 
 - use npm as package manager.
 
+## API Response Structure
+
+- 백엔드 `respond` 함수는 반드시 `{ data: ... }` 구조로 성공 응답을 반환해야 함. 프론트엔드에서 `response.data.data`로 접근하기 때문.
+- 새로운 API 훅 작성 시 응답 파싱 로직이 백엔드 응답 구조와 일치하는지 확인 필수.
+
 ## Korean Text
 
 - 코드를 생성한 후에 utf-8 기준으로 깨지는 한글이 있는지 확인해주세요. 만약 있다면 수정해주세요.

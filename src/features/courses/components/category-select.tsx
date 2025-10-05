@@ -24,7 +24,18 @@ interface CategorySelectProps {
  */
 export const CategorySelect = forwardRef<HTMLButtonElement, CategorySelectProps>(
   ({ value, onValueChange, placeholder = "카테고리를 선택하세요", disabled = false, error = false }, ref) => {
-    const { data: categoriesData, isLoading, isError } = useCategories();
+    const { data: categoriesData, isLoading, isError, error: queryError } = useCategories();
+
+    // 디버깅 정보 출력 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('CategorySelect 상태:', {
+        isLoading,
+        isError,
+        queryError: queryError?.message,
+        categoriesCount: categoriesData?.categories?.length || 0,
+        categories: categoriesData?.categories?.map(c => ({ id: c.id, name: c.name })) || []
+      });
+    }
 
     // 로딩 중일 때
     if (isLoading) {
@@ -48,7 +59,7 @@ export const CategorySelect = forwardRef<HTMLButtonElement, CategorySelectProps>
             ref={ref}
             className="border-red-500"
           >
-            <SelectValue placeholder="카테고리 로드 실패" />
+            <SelectValue placeholder="카테고리 로드 실패 - 페이지를 새로고침해주세요" />
           </SelectTrigger>
         </Select>
       );
