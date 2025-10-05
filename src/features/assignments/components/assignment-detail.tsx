@@ -1,12 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { 
   ArrowLeft, 
   Clock, 
@@ -16,30 +14,22 @@ import {
   RefreshCw,
   BookOpen,
   Calendar,
-  CheckCircle2,
-  XCircle,
-  FileText,
-  Link as LinkIcon
+  FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import Link from 'next/link';
 import { useAssignmentQuery } from '../hooks/useAssignmentQuery';
-import { SubmissionStatus } from '@/components/ui/submission-status';
+import { useSubmissionQuery } from '../hooks/useSubmissionQuery';
+import { SubmissionForm } from './submission-form';
+import { SubmissionStatus } from './submission-status';
 import { 
-  canSubmitAssignment, 
   getAssignmentStatusLabel,
   getAssignmentStatusColor,
-  getSubmitButtonText,
+  formatDueDate,
   type Assignment,
   type Submission
 } from '@/lib/utils/assignment';
-import { 
-  formatKoreanDateTime, 
-  getDaysUntilDue, 
-  getDeadlineColor,
-  getDeadlineStatus 
-} from '@/lib/utils/date';
 
 interface AssignmentDetailProps {
   assignmentId: string;
@@ -50,13 +40,24 @@ interface AssignmentDetailProps {
  * 과제의 상세 정보와 제출 인터페이스를 제공
  */
 export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
+  const [showSubmissionForm, setShowSubmissionForm] = useState(false);
+
   const {
     data: assignment,
-    isLoading,
-    isError,
+    isLoading: assignmentLoading,
+    isError: assignmentError,
     error,
-    refetch,
+    refetch: refetchAssignment,
   } = useAssignmentQuery(assignmentId);
+
+  const {
+    data: submission,
+    isLoading: submissionLoading,
+    refetch: refetchSubmission,
+  } = useSubmissionQuery(assignmentId);
+
+  const isLoading = assignmentLoading || submissionLoading;
+  const isError = assignmentError;
 
   // 로딩 상태
   if (isLoading) {
@@ -103,7 +104,7 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
                 </p>
               </div>
               <div className="flex gap-2 justify-center">
-                <Button onClick={() => refetch()} variant="outline">
+                <Button onClick={() => refetchAssignment()} variant="outline">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   다시 시도
                 </Button>
@@ -118,7 +119,7 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
     );
   }
 
-  // 제출 가능 여부 확인
+  // 과제 및 제출물 데이터 변환
   const assignmentData: Assignment = {
     id: assignment.id,
     status: assignment.status,
@@ -127,18 +128,28 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
     allowResubmission: assignment.allowResubmission,
   };
 
-  const submissionData: Submission | undefined = assignment.submission ? {
-    id: assignment.submission.id,
-    status: assignment.submission.status,
-    submittedAt: assignment.submission.submittedAt,
-    isLate: assignment.submission.isLate,
-    score: assignment.submission.score,
-    feedback: assignment.submission.feedback,
+  const submissionData: Submission | undefined = submission ? {
+    id: submission.id,
+    status: submission.status,
+    submittedAt: submission.submittedAt,
+    isLate: submission.isLate,
+    score: null, // API 응답에서 점수 정보가 없으므로 null로 설정
+    feedback: null, // API 응답에서 피드백 정보가 없으므로 null로 설정
+    content: submission.content,
+    linkUrl: submission.linkUrl,
   } : undefined;
 
-  const canSubmit = canSubmitAssignment(assignmentData, submissionData);
-  const submitButtonText = getSubmitButtonText(assignmentData, submissionData);
-  const daysUntilDue = getDaysUntilDue(assignment.dueDate);
+  // 제출 성공 후 콜백
+  const handleSubmissionSuccess = () => {
+    setShowSubmissionForm(false);
+    refetchSubmission();
+    refetchAssignment();
+  };
+
+  // 재제출 버튼 클릭 핸들러
+  const handleResubmitClick = () => {
+    setShowSubmissionForm(true);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -159,9 +170,6 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
                 <Badge className={getAssignmentStatusColor(assignment.status)}>
                   {getAssignmentStatusLabel(assignment.status)}
                 </Badge>
-                <Badge variant="outline" className={getDeadlineColor(assignment.dueDate)}>
-                  {getDeadlineStatus(assignment.dueDate)}
-                </Badge>
               </div>
               <CardTitle className="text-2xl">{assignment.title}</CardTitle>
               <p className="text-muted-foreground">
@@ -179,7 +187,7 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
               <div>
                 <p className="text-sm text-muted-foreground">마감일</p>
                 <p className="font-medium">
-                  {formatKoreanDateTime(assignment.dueDate)}
+                  {formatDueDate(assignment.dueDate)}
                 </p>
               </div>
             </div>
@@ -222,25 +230,14 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
           </div>
 
           {/* 제출 상태 */}
-          {assignment.submission ? (
-            <div className="space-y-3">
-              <h4 className="font-semibold">제출 상태</h4>
-              <SubmissionStatus
-                status={assignment.submission.status}
-                isLate={assignment.submission.isLate}
-                score={assignment.submission.score}
-                submittedAt={assignment.submission.submittedAt}
-              />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <h4 className="font-semibold">제출 상태</h4>
-              <SubmissionStatus
-                status="not-submitted"
-                dueDate={assignment.dueDate}
-              />
-            </div>
-          )}
+          <div className="space-y-3">
+            <h4 className="font-semibold">제출 상태</h4>
+            <SubmissionStatus
+              assignment={assignmentData}
+              submission={submissionData}
+              onResubmitClick={handleResubmitClick}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -259,113 +256,24 @@ export const AssignmentDetail = ({ assignmentId }: AssignmentDetailProps) => {
         </CardContent>
       </Card>
 
-      {/* 제출물 정보 (제출한 경우) */}
-      {assignment.submission && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              제출물 정보
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label className="text-sm font-medium">제출 내용</Label>
-              <div className="mt-1 p-3 bg-muted rounded-md">
-                <p className="whitespace-pre-wrap">{assignment.submission.content}</p>
-              </div>
-            </div>
-            
-            {assignment.submission.link && (
-              <div>
-                <Label className="text-sm font-medium">첨부 링크</Label>
-                <div className="mt-1">
-                  <a 
-                    href={assignment.submission.link} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                    {assignment.submission.link}
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {assignment.submission.feedback && (
-              <div>
-                <Label className="text-sm font-medium">피드백</Label>
-                <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="whitespace-pre-wrap">{assignment.submission.feedback}</p>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* 제출 인터페이스 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            과제 제출
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {canSubmit ? (
-            <form className="space-y-4">
-              <div>
-                <Label htmlFor="content" className="text-sm font-medium">
-                  제출 내용 <span className="text-red-500">*</span>
-                </Label>
-                <Textarea
-                  id="content"
-                  placeholder="과제 내용을 입력하세요..."
-                  className="mt-1"
-                  rows={6}
-                  defaultValue={assignment.submission?.content || ''}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="link" className="text-sm font-medium">
-                  첨부 링크 (선택사항)
-                </Label>
-                <Input
-                  id="link"
-                  type="url"
-                  placeholder="https://..."
-                  className="mt-1"
-                  defaultValue={assignment.submission?.link || ''}
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1">
-                  {submitButtonText}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="text-center py-8 space-y-3">
-              <XCircle className="h-12 w-12 text-muted-foreground mx-auto" />
-              <div>
-                <h4 className="font-semibold text-muted-foreground">제출할 수 없습니다</h4>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {assignment.status === 'closed' 
-                    ? '마감된 과제입니다.'
-                    : assignment.submission && !assignment.allowResubmission
-                    ? '재제출이 허용되지 않습니다.'
-                    : '제출 조건을 만족하지 않습니다.'
-                  }
-                </p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {showSubmissionForm ? (
+        <SubmissionForm
+          assignment={assignmentData}
+          existingSubmission={submissionData}
+          onSubmitSuccess={handleSubmissionSuccess}
+        />
+      ) : (
+        <div className="flex justify-center">
+          <Button
+            onClick={() => setShowSubmissionForm(true)}
+            size="lg"
+            className="min-w-[200px]"
+          >
+            {submissionData ? '재제출하기' : '과제 제출하기'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

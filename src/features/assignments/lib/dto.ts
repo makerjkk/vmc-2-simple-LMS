@@ -1,10 +1,20 @@
 /**
- * 클라이언트 측 Assignment DTO
- * Backend 스키마를 재노출하여 React Query 훅에서 사용
+ * 과제 및 제출물 관련 DTO (Data Transfer Object)
+ * 백엔드 스키마를 프론트엔드에서 재사용하기 위한 재노출
  */
 
+// 백엔드 스키마에서 타입 재노출
+export type {
+  CreateSubmissionRequest,
+  UpdateSubmissionRequest,
+  SubmissionResponse,
+  AssignmentDetailResponse,
+} from '../backend/schema';
+
+// 백엔드 스키마 재노출
 export {
+  CreateSubmissionRequestSchema,
+  UpdateSubmissionRequestSchema,
+  SubmissionResponseSchema,
   AssignmentDetailResponseSchema,
-  type AssignmentDetailResponse,
-  type AssignmentParams,
 } from '../backend/schema';

@@ -78,3 +78,30 @@ export const CourseTableRowSchema = z.object({
 });
 
 export type CourseTableRow = z.infer<typeof CourseTableRowSchema>;
+
+// 제출물 생성 요청 스키마
+export const CreateSubmissionRequestSchema = z.object({
+  content: z.string().min(1, '과제 내용을 입력해주세요.').max(5000, '내용이 너무 깁니다.'),
+  linkUrl: z.string().url('올바른 URL 형식을 입력해주세요.').optional().nullable(),
+});
+
+export type CreateSubmissionRequest = z.infer<typeof CreateSubmissionRequestSchema>;
+
+// 제출물 업데이트 요청 스키마  
+export const UpdateSubmissionRequestSchema = CreateSubmissionRequestSchema;
+
+export type UpdateSubmissionRequest = z.infer<typeof UpdateSubmissionRequestSchema>;
+
+// 제출물 응답 스키마
+export const SubmissionResponseSchema = z.object({
+  id: z.string().uuid(),
+  assignmentId: z.string().uuid(),
+  content: z.string(),
+  linkUrl: z.string().nullable(),
+  isLate: z.boolean(),
+  status: z.enum(['submitted', 'graded', 'resubmission_required']),
+  submittedAt: z.string(),
+  canResubmit: z.boolean(),
+});
+
+export type SubmissionResponse = z.infer<typeof SubmissionResponseSchema>;
