@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { ToastAction } from '@/components/ui/toast';
 import type { CourseFilters as CourseFiltersType, SortOption } from '@/lib/utils/search';
 import type { CoursesQueryParams } from '../lib/dto';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 
 interface CourseListProps {
   initialParams?: CoursesQueryParams;
@@ -37,8 +38,8 @@ export const CourseList = ({
 
   // 쿼리 파라미터 상태
   const [queryParams, setQueryParams] = useState<CoursesQueryParams>({
-    page: 1,
-    limit: 20,
+    page: DEFAULT_PAGE_NUMBER,
+    limit: DEFAULT_PAGE_SIZE,
     sortBy: 'latest',
     ...initialParams,
   });
@@ -58,7 +59,7 @@ export const CourseList = ({
     setQueryParams(prev => ({
       ...prev,
       search: search || undefined,
-      page: 1, // 검색 시 첫 페이지로 리셋
+      page: DEFAULT_PAGE_NUMBER, // 검색 시 첫 페이지로 리셋
     }));
   }, []);
 
@@ -68,7 +69,7 @@ export const CourseList = ({
       ...prev,
       category: filters.category || undefined,
       difficulty: filters.difficulty || undefined,
-      page: 1, // 필터 변경 시 첫 페이지로 리셋
+      page: DEFAULT_PAGE_NUMBER, // 필터 변경 시 첫 페이지로 리셋
     }));
   }, []);
 
@@ -77,7 +78,7 @@ export const CourseList = ({
     setQueryParams(prev => ({
       ...prev,
       sortBy,
-      page: 1, // 정렬 변경 시 첫 페이지로 리셋
+      page: DEFAULT_PAGE_NUMBER, // 정렬 변경 시 첫 페이지로 리셋
     }));
   }, []);
 
@@ -132,8 +133,8 @@ export const CourseList = ({
             difficulty: queryParams.difficulty,
           }}
           initialSort={queryParams.sortBy}
-          categories={categoriesData?.categories || []}
-          isLoading={true}
+          categories={categoriesData?.categories?.map(cat => ({ id: cat.id, name: cat.name })) || []}
+          isLoading={isFetching}
         />
         
         <div className="flex items-center justify-center min-h-[400px]">
@@ -160,7 +161,7 @@ export const CourseList = ({
             difficulty: queryParams.difficulty,
           }}
           initialSort={queryParams.sortBy}
-          categories={categoriesData?.categories || []}
+          categories={categoriesData?.categories?.map(cat => ({ id: cat.id, name: cat.name })) || []}
         />
 
         <Card>
@@ -200,7 +201,7 @@ export const CourseList = ({
           difficulty: queryParams.difficulty,
         }}
         initialSort={queryParams.sortBy}
-        categories={categoriesData?.categories || []}
+        categories={categoriesData?.categories?.map(cat => ({ id: cat.id, name: cat.name })) || []}
         isLoading={isFetching}
       />
 

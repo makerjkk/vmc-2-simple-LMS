@@ -1,10 +1,7 @@
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RoleGuard } from '@/components/auth/role-guard';
 import { CourseList } from '@/features/courses/components/course-list';
-import { apiClient, extractApiErrorMessage } from '@/lib/remote/api-client';
 import { useCurrentUser } from '@/features/auth/hooks/useCurrentUser';
 import { HomeLayout } from '@/components/layout/home-layout';
 
@@ -12,33 +9,9 @@ type CoursesPageProps = {
   params: Promise<Record<string, never>>;
 };
 
-// 카테고리 목록 조회 함수
-const fetchCategories = async () => {
-  try {
-    // 임시로 하드코딩된 카테고리 사용 (실제로는 API에서 조회)
-    return [
-      { id: '1', name: '프로그래밍' },
-      { id: '2', name: '데이터 사이언스' },
-      { id: '3', name: '디자인' },
-      { id: '4', name: '비즈니스' },
-      { id: '5', name: '언어' },
-    ];
-  } catch (error) {
-    const message = extractApiErrorMessage(error, 'Failed to fetch categories.');
-    throw new Error(message);
-  }
-};
-
 export default function CoursesPage({ params }: CoursesPageProps) {
   void params;
   const { user, isAuthenticated } = useCurrentUser();
-
-  // 카테고리 목록 조회
-  const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
-    staleTime: 10 * 60 * 1000, // 10분간 캐시 유지
-  });
 
   const isLearner = isAuthenticated && user?.profile?.role === 'learner';
 
@@ -73,7 +46,6 @@ export default function CoursesPage({ params }: CoursesPageProps) {
           {/* 코스 목록 */}
           <CourseList
             showEnrollButtons={isLearner}
-            categories={categories}
           />
         </div>
       </div>

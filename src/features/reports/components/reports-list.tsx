@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ReportStatusBadge } from './report-status-badge';
 import { useReportsQuery } from '../hooks/useReportsQuery';
 import type { ReportsQueryParams } from '../lib/dto';
+import { DEFAULT_PAGE_SIZE, DEFAULT_PAGE_NUMBER } from '@/constants/pagination';
 
 interface ReportsListProps {
   onReportClick: (reportId: string) => void;
@@ -23,8 +24,8 @@ interface ReportsListProps {
  */
 export const ReportsList = ({ onReportClick }: ReportsListProps) => {
   const [queryParams, setQueryParams] = useState<ReportsQueryParams>({
-    page: 1,
-    limit: 20,
+    page: DEFAULT_PAGE_NUMBER,
+    limit: DEFAULT_PAGE_SIZE,
     sortBy: 'created_at',
     sortOrder: 'desc',
   });

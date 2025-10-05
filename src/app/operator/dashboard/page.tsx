@@ -9,6 +9,7 @@ import { HomeLayout } from "@/components/layout/home-layout";
 import { OperatorStats } from '@/features/operator-dashboard/components/operator-stats';
 import { RecentReports } from '@/features/operator-dashboard/components/recent-reports';
 import { PendingActions } from '@/features/operator-dashboard/components/pending-actions';
+import { SMALL_PAGE_SIZE } from '@/constants/pagination';
 
 /**
  * 운영자 대시보드 페이지
@@ -81,7 +82,7 @@ export default function OperatorDashboardPage() {
             <TabsContent value="reports" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <RecentReports
-                  limit={10}
+                  limit={SMALL_PAGE_SIZE}
                   onReportClick={handleReportClick}
                 />
                 <PendingActions />

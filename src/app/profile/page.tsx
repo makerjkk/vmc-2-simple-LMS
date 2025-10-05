@@ -50,7 +50,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     if (user?.profile) {
       setEditForm({
         fullName: user.profile.fullName || "",
-        phoneNumber: user.profile.phoneNumber || "",
+        phoneNumber: user.profile.phone || "",
       });
     }
   }, [user]);
@@ -116,7 +116,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     if (user?.profile) {
       setEditForm({
         fullName: user.profile.fullName || "",
-        phoneNumber: user.profile.phoneNumber || "",
+        phoneNumber: user.profile.phone || "",
       });
     }
   };
@@ -253,10 +253,10 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     <Mail className="h-4 w-4" />
                     {user.email}
                   </p>
-                  {user.profile?.createdAt && (
+                  {user.profile?.termsAgreedAt && (
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
-                      가입일: {new Date(user.profile.createdAt).toLocaleDateString('ko-KR')}
+                      가입일: {new Date(user.profile.termsAgreedAt).toLocaleDateString('ko-KR')}
                     </p>
                   )}
                 </div>
@@ -298,7 +298,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
                     />
                   ) : (
                     <div className="p-3 bg-muted rounded-md">
-                      {user.profile?.phoneNumber || '전화번호가 설정되지 않았습니다'}
+                      {user.profile?.phone || '전화번호가 설정되지 않았습니다'}
                     </div>
                   )}
                 </div>

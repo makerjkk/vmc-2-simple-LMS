@@ -128,7 +128,6 @@ export default function AssignmentsPage({ params }: AssignmentsPageProps) {
     ...dashboardData.upcomingAssignments.map(assignment => ({
       ...assignment,
       isUpcoming: true,
-      courseName: dashboardData.courses.find(c => c.id === assignment.courseId)?.title || 'Unknown Course'
     })),
     // 여기에 다른 과제들도 추가할 수 있음 (완료된 과제, 모든 과제 등)
   ];
@@ -244,7 +243,7 @@ export default function AssignmentsPage({ params }: AssignmentsPageProps) {
                               {assignment.title}
                             </h4>
                             <p className="text-sm text-gray-600 mt-1">
-                              {assignment.courseName}
+                              {assignment.courseTitle}
                             </p>
                           </div>
                           
@@ -265,7 +264,7 @@ export default function AssignmentsPage({ params }: AssignmentsPageProps) {
                           </div>
                           <div className="flex items-center gap-1">
                             <Target className="h-4 w-4" />
-                            <span>배점: {assignment.scoreWeight}점</span>
+                            <span>{assignment.daysLeft}일 남음</span>
                           </div>
                         </div>
                       </div>

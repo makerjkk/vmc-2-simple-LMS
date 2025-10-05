@@ -49,19 +49,19 @@ export const CourseFilters = ({
     [searchTerm]
   );
 
-  // 필터 변경 시 부모 컴포넌트에 알림 (의존성에서 콜백 함수 제거)
+  // 필터 변경 시 부모 컴포넌트에 알림
   useEffect(() => {
     const filters: CourseFiltersType = {};
     if (selectedCategory && selectedCategory !== 'all') filters.category = selectedCategory;
     if (selectedDifficulty && selectedDifficulty !== 'all') filters.difficulty = selectedDifficulty as CourseFiltersType['difficulty'];
     
     onFilterChange(filters);
-  }, [selectedCategory, selectedDifficulty]); // onFilterChange 제거
+  }, [selectedCategory, selectedDifficulty, onFilterChange]);
 
-  // 정렬 변경 시 부모 컴포넌트에 알림 (의존성에서 콜백 함수 제거)
+  // 정렬 변경 시 부모 컴포넌트에 알림
   useEffect(() => {
     onSortChange(selectedSort);
-  }, [selectedSort]); // onSortChange 제거
+  }, [selectedSort, onSortChange]);
 
   // 필터 초기화
   const handleReset = () => {

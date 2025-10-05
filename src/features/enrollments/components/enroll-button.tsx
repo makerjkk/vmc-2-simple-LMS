@@ -212,7 +212,7 @@ export const EnrollButton = ({
             <AlertDialogHeader>
               <AlertDialogTitle>수강취소 확인</AlertDialogTitle>
               <AlertDialogDescription>
-                정말로 "{courseTitle}" 수강을 취소하시겠습니까?
+                정말로 &quot;{courseTitle}&quot; 수강을 취소하시겠습니까?
                 <br />
                 수강취소 후에는 학습 진행 상황이 초기화될 수 있습니다.
               </AlertDialogDescription>
