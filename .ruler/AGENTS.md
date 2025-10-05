@@ -6,6 +6,7 @@
 - always use promise for page.tsx params props.
 - use valid picsum.photos stock image for placeholder image
 - route feature hooks' HTTP requests through `@/lib/remote/api-client`.
+- **CRITICAL**: Always implement proper error handling with user-friendly dialog messages for all error situations.
 
 ## Library
 
@@ -158,8 +159,65 @@ use following libraries for specific functionalities:
 
 ## Error Handling:
 
-- Use appropriate techniques
-- Prefer returning errors over exceptions
+### Frontend Error Handling (CRITICAL)
+
+**All error situations MUST be handled with user-friendly dialog messages:**
+
+1. **Use Error Dialog System**:
+   - Import and use `useErrorDialog` hook from `@/hooks/useErrorDialog`
+   - Import and add `<ErrorDialog />` component to all components that handle mutations
+   - Never rely on console.log or silent failures for user-facing errors
+
+2. **Mutation Hooks Pattern**:
+   ```typescript
+   export const useSomeMutation = () => {
+     const queryClient = useQueryClient();
+     const { showErrorFromException } = useErrorDialog();
+
+     return useMutation({
+       mutationFn: async (data) => {
+         try {
+           const response = await apiClient.post('/api/endpoint', data);
+           return response.data;
+         } catch (error) {
+           throw new Error('사용자 친화적 에러 메시지');
+         }
+       },
+       onSuccess: () => {
+         // 성공 시 쿼리 무효화
+       },
+       onError: (error) => {
+         showErrorFromException(error, '작업 실패');
+       },
+     });
+   };
+   ```
+
+3. **Component Integration**:
+   ```typescript
+   export const SomeComponent = () => {
+     const { errorState, hideError } = useErrorDialog();
+     
+     return (
+       <>
+         {/* 컴포넌트 내용 */}
+         <ErrorDialog errorState={errorState} onClose={hideError} />
+       </>
+     );
+   };
+   ```
+
+4. **Error Message Guidelines**:
+   - Use Korean language for user-facing messages
+   - Be specific about what failed (e.g., "카테고리 생성 실패", "신고 상태 변경 실패")
+   - Provide actionable information when possible
+   - Include technical details in collapsible section for debugging
+
+5. **Backend Error Handling**:
+   - Use appropriate techniques
+   - Prefer returning errors over exceptions
+   - Use consistent error codes and messages
+   - Log errors appropriately for debugging
 
 ## Testing:
 

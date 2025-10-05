@@ -48,8 +48,8 @@ export const processAutoCloseAssignments = async (
       lastRunAt: new Date().toISOString(),
     });
 
-    let processedAssignments: string[] = [];
-    let errors: Array<{ assignmentId: string; error: string }> = [];
+    const processedAssignments: string[] = [];
+    const errors: Array<{ assignmentId: string; error: string }> = [];
 
     try {
       // 3. 자동 마감 대상 Assignment 조회

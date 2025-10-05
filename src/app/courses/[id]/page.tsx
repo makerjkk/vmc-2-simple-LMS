@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from 'react';
 import { CourseDetail } from '@/features/courses/components/course-detail';
 
 type CourseDetailPageProps = {
@@ -10,8 +11,8 @@ type CourseDetailPageProps = {
  * 코스 상세 페이지
  * 특정 코스의 상세 정보를 표시하고 수강신청 기능을 제공
  */
-export default async function CourseDetailPage({ params }: CourseDetailPageProps) {
-  const { id } = await params;
+export default function CourseDetailPage({ params }: CourseDetailPageProps) {
+  const { id } = use(params);
 
   return (
     <div className="container mx-auto py-8">
