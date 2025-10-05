@@ -37,17 +37,47 @@ export const CurrentUserProvider = ({
     try {
       const result = await supabase.auth.getUser();
 
-      const nextSnapshot = match(result)
-        .with({ data: { user: P.nonNullable } }, ({ data }) => ({
-          status: "authenticated" as const,
-          user: {
+      const nextSnapshot = await match(result)
+        .with({ data: { user: P.nonNullable } }, async ({ data }) => {
+          const baseUser = {
             id: data.user.id,
             email: data.user.email,
             appMetadata: data.user.app_metadata ?? {},
             userMetadata: data.user.user_metadata ?? {},
-          },
-        }))
-        .otherwise(() => ({ status: "unauthenticated" as const, user: null }));
+          };
+
+          // 프로필 정보 조회
+          try {
+            const { data: profile } = await supabase
+              .from('users')
+              .select('full_name, phone, role, terms_agreed_at')
+              .eq('auth_user_id', data.user.id)
+              .maybeSingle() as { data: any };
+
+            if (profile && profile.full_name && profile.role) {
+              return {
+                status: "authenticated" as const,
+                user: {
+                  ...baseUser,
+                  profile: {
+                    fullName: profile.full_name,
+                    phone: profile.phone,
+                    role: profile.role as 'learner' | 'instructor' | 'operator',
+                    termsAgreedAt: profile.terms_agreed_at,
+                  },
+                },
+              };
+            }
+          } catch (error) {
+            console.error('Failed to load user profile:', error);
+          }
+
+          return {
+            status: "authenticated" as const,
+            user: baseUser,
+          };
+        })
+        .otherwise(() => Promise.resolve({ status: "unauthenticated" as const, user: null }));
 
       setSnapshot(nextSnapshot);
       queryClient.setQueryData(["currentUser"], nextSnapshot);
