@@ -7,6 +7,13 @@ export {
   CoursesResponseSchema,
   CourseDetailResponseSchema,
   EnrollmentStatusResponseSchema,
+  // Course Management 관련 스키마들
+  CreateCourseRequestSchema,
+  UpdateCourseRequestSchema,
+  CourseStatusUpdateSchema,
+  InstructorCoursesQuerySchema,
+  InstructorCourseResponseSchema,
+  InstructorCoursesResponseSchema,
   type CoursesQueryParams,
   type CourseParams,
   type EnrollmentStatusParams,
@@ -14,4 +21,11 @@ export {
   type CoursesResponse,
   type CourseDetailResponse,
   type EnrollmentStatusResponse,
+  // Course Management 관련 타입들
+  type CreateCourseRequest,
+  type UpdateCourseRequest,
+  type CourseStatusUpdate,
+  type InstructorCoursesQuery,
+  type InstructorCourseResponse,
+  type InstructorCoursesResponse,
 } from '@/features/courses/backend/schema';

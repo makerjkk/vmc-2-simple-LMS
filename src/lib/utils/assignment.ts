@@ -14,6 +14,19 @@ export interface Assignment {
   dueDate: string;
   allowLateSubmission: boolean;
   allowResubmission: boolean;
+  scoreWeight?: number;
+}
+
+export interface InstructorAssignment extends Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  scoreWeight: number;
+  submissionCount: number;
+  gradedCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Submission {
@@ -371,4 +384,590 @@ export const getSubmissionAvailabilityMessage = (
       : '재제출이 가능합니다.',
     variant: submission.status === 'resubmission_required' ? 'warning' : 'default'
   };
+};
+
+// ===== 강사용 유틸리티 함수들 =====
+
+/**
+ * 과제 상태 전환 검증
+ * 비즈니스 룰에 따른 상태 전환 가능 여부 확인
+ */
+export const validateStatusTransition = (
+  currentStatus: AssignmentStatus,
+  newStatus: AssignmentStatus,
+  hasSubmissions: boolean = false,
+  dueDate?: string
+): { isValid: boolean; reason?: string } => {
+  // 동일한 상태로는 전환 불가
+  if (currentStatus === newStatus) {
+    return { isValid: false, reason: '동일한 상태로는 전환할 수 없습니다.' };
+  }
+
+  // 허용되는 상태 전환 규칙
+  const validTransitions: Record<AssignmentStatus, AssignmentStatus[]> = {
+    draft: ['published'],
+    published: ['closed'],
+    closed: ['published'], // 조건부 허용
+  };
+
+  const allowedNextStates = validTransitions[currentStatus];
+  if (!allowedNextStates.includes(newStatus)) {
+    return { 
+      isValid: false, 
+      reason: `${getAssignmentStatusLabel(currentStatus)}에서 ${getAssignmentStatusLabel(newStatus)}로 상태 전환이 불가능합니다.` 
+    };
+  }
+
+  // closed에서 published로 전환 시 마감일 검증
+  if (currentStatus === 'closed' && newStatus === 'published') {
+    if (!dueDate) {
+      return { isValid: false, reason: '마감일 정보가 필요합니다.' };
+    }
+    
+    if (isAssignmentOverdue(dueDate)) {
+      return { isValid: false, reason: '마감일이 지난 과제는 다시 게시할 수 없습니다.' };
+    }
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * 점수 비중 합계 계산
+ * 특정 과제를 제외하고 계산 가능
+ */
+export const calculateTotalScoreWeight = (
+  assignments: InstructorAssignment[],
+  excludeId?: string
+): number => {
+  return assignments
+    .filter(assignment => 
+      assignment.id !== excludeId && 
+      assignment.status !== 'draft' // draft 상태는 제외
+    )
+    .reduce((total, assignment) => total + assignment.scoreWeight, 0);
+};
+
+/**
+ * 점수 비중 합계 검증
+ * 100%를 초과하는지 확인
+ */
+export const validateScoreWeightTotal = (
+  currentWeight: number,
+  existingWeights: number[],
+  maxWeight: number = 100
+): { isValid: boolean; total: number; message?: string } => {
+  const total = existingWeights.reduce((sum, weight) => sum + weight, 0) + currentWeight;
+  
+  if (total > maxWeight) {
+    return {
+      isValid: false,
+      total,
+      message: `점수 비중 합계가 ${maxWeight}%를 초과합니다. (현재: ${total}%)`
+    };
+  }
+
+  return { isValid: true, total };
+};
+
+/**
+ * 마감일 자동 처리 검증
+ * 마감일이 지난 published 과제는 자동으로 closed 상태가 되어야 함
+ */
+export const shouldAutoClose = (assignment: InstructorAssignment): boolean => {
+  return assignment.status === 'published' && isAssignmentOverdue(assignment.dueDate);
+};
+
+/**
+ * 상태 전환 이력 포맷팅
+ */
+export const formatStatusChangeHistory = (logs: Array<{
+  id: string;
+  previousStatus: 'draft' | 'published' | 'closed';
+  newStatus: 'draft' | 'published' | 'closed';
+  changeReason: 'manual' | 'auto_close' | 'system';
+  changedByName: string;
+  createdAt: string;
+  metadata?: Record<string, any>;
+}>): Array<{
+  id: string;
+  description: string;
+  timestamp: string;
+  type: 'manual' | 'auto_close' | 'system';
+  user: string;
+  details?: string;
+}> => {
+  return logs.map(log => {
+    let description = '';
+    let details = '';
+
+    // 상태 전환 설명 생성
+    const fromStatus = getAssignmentStatusLabel(log.previousStatus);
+    const toStatus = getAssignmentStatusLabel(log.newStatus);
+    
+    switch (log.changeReason) {
+      case 'manual':
+        description = `${fromStatus}에서 ${toStatus}로 수동 변경`;
+        break;
+      case 'auto_close':
+        description = `마감일 도달로 자동 마감`;
+        if (log.metadata?.dueDate) {
+          details = `마감일: ${new Date(log.metadata.dueDate).toLocaleString('ko-KR')}`;
+        }
+        break;
+      case 'system':
+        description = `시스템에 의한 상태 변경`;
+        break;
+      default:
+        description = `${fromStatus}에서 ${toStatus}로 변경`;
+    }
+
+    return {
+      id: log.id,
+      description,
+      timestamp: log.createdAt,
+      type: log.changeReason,
+      user: log.changedByName,
+      details,
+    };
+  });
+};
+
+/**
+ * 자동 마감 대상 Assignment 필터링
+ */
+export const filterAutoCloseEligible = (assignments: Array<{
+  id: string;
+  status: 'draft' | 'published' | 'closed';
+  dueDate: string;
+}>): Array<{
+  id: string;
+  status: 'draft' | 'published' | 'closed';
+  dueDate: string;
+}> => {
+  const now = new Date();
+  
+  return assignments.filter(assignment => {
+    if (assignment.status !== 'published') {
+      return false;
+    }
+    
+    const dueDate = new Date(assignment.dueDate);
+    return dueDate < now;
+  });
+};
+
+/**
+ * 동시성 충돌 감지
+ */
+export const detectConcurrentModification = (
+  currentVersion: string,
+  expectedVersion: string
+): boolean => {
+  return currentVersion !== expectedVersion;
+};
+
+/**
+ * Assignment 상태 변경 가능 여부 검증 (확장)
+ */
+export const canChangeAssignmentStatus = (
+  currentStatus: 'draft' | 'published' | 'closed',
+  targetStatus: 'draft' | 'published' | 'closed',
+  options: {
+    dueDate?: string;
+    hasSubmissions?: boolean;
+    isOwner?: boolean;
+  } = {}
+): {
+  canChange: boolean;
+  reason?: string;
+  warning?: string;
+} => {
+  const { dueDate, hasSubmissions = false, isOwner = true } = options;
+
+  // 소유자 권한 확인
+  if (!isOwner) {
+    return {
+      canChange: false,
+      reason: '해당 과제에 대한 권한이 없습니다.',
+    };
+  }
+
+  // 동일한 상태로의 전환 방지
+  if (currentStatus === targetStatus) {
+    return {
+      canChange: false,
+      reason: '동일한 상태로는 전환할 수 없습니다.',
+    };
+  }
+
+  // 상태 전환 규칙 검증
+  const validTransitions: Record<string, string[]> = {
+    draft: ['published'],
+    published: ['closed'],
+    closed: ['published'], // 조건부 허용
+  };
+
+  if (!validTransitions[currentStatus]?.includes(targetStatus)) {
+    return {
+      canChange: false,
+      reason: `${currentStatus}에서 ${targetStatus}로 상태 전환이 불가능합니다.`,
+    };
+  }
+
+  // closed에서 published로 전환 시 마감일 검증
+  if (currentStatus === 'closed' && targetStatus === 'published') {
+    if (dueDate) {
+      const dueDateObj = new Date(dueDate);
+      const now = new Date();
+      
+      if (dueDateObj <= now) {
+        return {
+          canChange: false,
+          reason: '마감일이 지난 과제는 다시 게시할 수 없습니다.',
+        };
+      }
+    }
+  }
+
+  // 제출물이 있는 상태에서의 변경 경고
+  if (hasSubmissions && targetStatus === 'draft') {
+    return {
+      canChange: true,
+      warning: '제출물이 있는 과제를 초안으로 되돌리면 학습자가 과제를 볼 수 없게 됩니다.',
+    };
+  }
+
+  if (hasSubmissions && currentStatus === 'published' && targetStatus === 'closed') {
+    return {
+      canChange: true,
+      warning: '과제를 마감하면 더 이상 제출을 받을 수 없습니다.',
+    };
+  }
+
+  return { canChange: true };
+};
+
+/**
+ * Assignment 상태별 통계 계산
+ */
+export const calculateAssignmentStats = (assignments: Array<{
+  status: 'draft' | 'published' | 'closed';
+  submissionCount: number;
+  gradedCount: number;
+  dueDate: string;
+}>): {
+  total: number;
+  draft: number;
+  published: number;
+  closed: number;
+  overdue: number;
+  needsGrading: number;
+  completionRate: number;
+} => {
+  const now = new Date();
+  
+  const stats = assignments.reduce((acc, assignment) => {
+    acc.total++;
+    acc[assignment.status]++;
+    
+    if (assignment.status === 'published' && new Date(assignment.dueDate) < now) {
+      acc.overdue++;
+    }
+    
+    if (assignment.submissionCount > assignment.gradedCount) {
+      acc.needsGrading++;
+    }
+    
+    return acc;
+  }, {
+    total: 0,
+    draft: 0,
+    published: 0,
+    closed: 0,
+    overdue: 0,
+    needsGrading: 0,
+    completionRate: 0,
+  });
+
+  // 완료율 계산 (closed 상태의 과제 비율)
+  stats.completionRate = stats.total > 0 ? (stats.closed / stats.total) * 100 : 0;
+
+  return stats;
+};
+
+/**
+ * 과제 수정 가능 여부 검증
+ * 제출물이 있는 게시된 과제의 수정 제한 확인
+ */
+export const canEditAssignment = (
+  assignment: InstructorAssignment | { id: string; status: AssignmentStatus; dueDate: string; submissionCount?: number },
+  submissionCount: number = 0
+): { canEdit: boolean; restrictions: string[] } => {
+  const restrictions: string[] = [];
+
+  // 제출물이 있는 게시된 과제의 경우
+  if (assignment.status === 'published' && submissionCount > 0) {
+    restrictions.push('제출물이 있는 게시된 과제는 일부 정보만 수정 가능합니다.');
+    restrictions.push('마감일과 점수 비중은 수정할 수 없습니다.');
+  }
+
+  // 마감된 과제의 경우
+  if (assignment.status === 'closed') {
+    restrictions.push('마감된 과제는 상태 전환만 가능합니다.');
+  }
+
+  return {
+    canEdit: restrictions.length === 0,
+    restrictions
+  };
+};
+
+/**
+ * 과제 삭제 가능 여부 검증
+ */
+export const canDeleteAssignment = (
+  assignment: InstructorAssignment | { id: string; status: AssignmentStatus; dueDate: string; submissionCount?: number },
+  submissionCount: number = 0
+): { canDelete: boolean; reason?: string } => {
+  // 제출물이 있는 경우 삭제 불가
+  if (submissionCount > 0) {
+    return {
+      canDelete: false,
+      reason: '제출물이 있는 과제는 삭제할 수 없습니다.'
+    };
+  }
+
+  // Draft 상태가 아니고 게시된 적이 있는 경우 주의 필요
+  if (assignment.status !== 'draft') {
+    return {
+      canDelete: true,
+      reason: '게시된 과제를 삭제하면 복구할 수 없습니다.'
+    };
+  }
+
+  return { canDelete: true };
+};
+
+/**
+ * 과제 진행률 계산
+ * 제출률과 채점률 계산
+ */
+export const calculateAssignmentProgress = (
+  assignment: InstructorAssignment | { submissionCount: number; gradedCount: number },
+  totalEnrollments: number = 0
+): {
+  submissionRate: number;
+  gradingRate: number;
+  completionRate: number;
+} => {
+  const submissionRate = totalEnrollments > 0 
+    ? Math.round((assignment.submissionCount / totalEnrollments) * 100)
+    : 0;
+
+  const gradingRate = assignment.submissionCount > 0
+    ? Math.round((assignment.gradedCount / assignment.submissionCount) * 100)
+    : 0;
+
+  const completionRate = totalEnrollments > 0
+    ? Math.round((assignment.gradedCount / totalEnrollments) * 100)
+    : 0;
+
+  return {
+    submissionRate,
+    gradingRate,
+    completionRate
+  };
+};
+
+/**
+ * 과제 우선순위 계산
+ * 마감일, 제출률, 채점률을 고려한 우선순위 점수
+ */
+export const calculateAssignmentPriority = (
+  assignment: InstructorAssignment | { status: AssignmentStatus; dueDate: string; submissionCount: number; gradedCount: number },
+  totalEnrollments: number = 0
+): {
+  priority: 'high' | 'medium' | 'low';
+  score: number;
+  reasons: string[];
+} => {
+  let score = 0;
+  const reasons: string[] = [];
+
+  // 마감일 기준 점수
+  if (assignment.status === 'published') {
+    const hoursUntilDue = (parseISO(assignment.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60);
+    
+    if (hoursUntilDue <= 24 && hoursUntilDue > 0) {
+      score += 50;
+      reasons.push('24시간 이내 마감');
+    } else if (hoursUntilDue <= 72 && hoursUntilDue > 0) {
+      score += 30;
+      reasons.push('3일 이내 마감');
+    } else if (hoursUntilDue <= 0) {
+      score += 70;
+      reasons.push('마감일 경과');
+    }
+  }
+
+  // 제출물 채점 필요 점수
+  const ungradedCount = assignment.submissionCount - assignment.gradedCount;
+  if (ungradedCount > 0) {
+    score += Math.min(ungradedCount * 5, 30);
+    reasons.push(`${ungradedCount}개 제출물 채점 필요`);
+  }
+
+  // 제출률이 낮은 경우
+  const { submissionRate } = calculateAssignmentProgress(assignment, totalEnrollments);
+  if (assignment.status === 'published' && submissionRate < 50) {
+    score += 20;
+    reasons.push('낮은 제출률');
+  }
+
+  // 우선순위 결정
+  let priority: 'high' | 'medium' | 'low';
+  if (score >= 60) {
+    priority = 'high';
+  } else if (score >= 30) {
+    priority = 'medium';
+  } else {
+    priority = 'low';
+  }
+
+  return { priority, score, reasons };
+};
+
+/**
+ * 과제 상태별 액션 버튼 정보
+ */
+export const getAssignmentActions = (
+  assignment: InstructorAssignment | { id: string; status: AssignmentStatus; dueDate: string; submissionCount?: number },
+  submissionCount: number = 0
+): {
+  canEdit: boolean;
+  canDelete: boolean;
+  canPublish: boolean;
+  canClose: boolean;
+  canReopen: boolean;
+  primaryAction?: 'edit' | 'publish' | 'close' | 'view-submissions';
+} => {
+  const { canEdit } = canEditAssignment(assignment, submissionCount);
+  const { canDelete } = canDeleteAssignment(assignment, submissionCount);
+
+  const actions = {
+    canEdit,
+    canDelete,
+    canPublish: assignment.status === 'draft',
+    canClose: assignment.status === 'published',
+    canReopen: assignment.status === 'closed' && !isAssignmentOverdue(assignment.dueDate),
+    primaryAction: undefined as 'edit' | 'publish' | 'close' | 'view-submissions' | undefined,
+  };
+
+  // 주요 액션 결정
+  if (assignment.status === 'draft') {
+    actions.primaryAction = 'publish';
+  } else if (assignment.status === 'published' && submissionCount > 0) {
+    actions.primaryAction = 'view-submissions';
+  } else if (assignment.status === 'published') {
+    actions.primaryAction = 'edit';
+  } else if (assignment.status === 'closed' && submissionCount > 0) {
+    actions.primaryAction = 'view-submissions';
+  }
+
+  return actions;
+};
+
+/**
+ * 과제 목록 정렬 함수
+ */
+export const sortAssignments = (
+  assignments: InstructorAssignment[],
+  sortBy: 'dueDate' | 'status' | 'priority' | 'submissionCount' | 'updatedAt' = 'updatedAt',
+  order: 'asc' | 'desc' = 'desc'
+): InstructorAssignment[] => {
+  return [...assignments].sort((a, b) => {
+    let comparison = 0;
+
+    switch (sortBy) {
+      case 'dueDate':
+        comparison = parseISO(a.dueDate).getTime() - parseISO(b.dueDate).getTime();
+        break;
+      case 'status':
+        const statusOrder = { draft: 0, published: 1, closed: 2 };
+        comparison = statusOrder[a.status] - statusOrder[b.status];
+        break;
+      case 'priority':
+        const aPriority = calculateAssignmentPriority(a);
+        const bPriority = calculateAssignmentPriority(b);
+        comparison = bPriority.score - aPriority.score; // 높은 우선순위가 먼저
+        break;
+      case 'submissionCount':
+        comparison = a.submissionCount - b.submissionCount;
+        break;
+      case 'updatedAt':
+      default:
+        comparison = parseISO(a.updatedAt).getTime() - parseISO(b.updatedAt).getTime();
+        break;
+    }
+
+    return order === 'asc' ? comparison : -comparison;
+  });
+};
+
+/**
+ * 과제 필터링 함수
+ */
+export const filterAssignments = (
+  assignments: InstructorAssignment[],
+  filters: {
+    status?: AssignmentStatus;
+    hasSubmissions?: boolean;
+    needsGrading?: boolean;
+    overdue?: boolean;
+    search?: string;
+  }
+): InstructorAssignment[] => {
+  return assignments.filter(assignment => {
+    // 상태 필터
+    if (filters.status && assignment.status !== filters.status) {
+      return false;
+    }
+
+    // 제출물 존재 여부 필터
+    if (filters.hasSubmissions !== undefined) {
+      const hasSubmissions = assignment.submissionCount > 0;
+      if (filters.hasSubmissions !== hasSubmissions) {
+        return false;
+      }
+    }
+
+    // 채점 필요 여부 필터
+    if (filters.needsGrading !== undefined) {
+      const needsGrading = assignment.submissionCount > assignment.gradedCount;
+      if (filters.needsGrading !== needsGrading) {
+        return false;
+      }
+    }
+
+    // 마감일 경과 필터
+    if (filters.overdue !== undefined) {
+      const isOverdue = isAssignmentOverdue(assignment.dueDate);
+      if (filters.overdue !== isOverdue) {
+        return false;
+      }
+    }
+
+    // 검색어 필터
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      const titleMatch = assignment.title.toLowerCase().includes(searchLower);
+      const descriptionMatch = assignment.description.toLowerCase().includes(searchLower);
+      if (!titleMatch && !descriptionMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 };

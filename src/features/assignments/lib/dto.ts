@@ -9,6 +9,23 @@ export type {
   UpdateSubmissionRequest,
   SubmissionResponse,
   AssignmentDetailResponse,
+  // 강사용 타입 추가
+  CreateAssignmentRequest,
+  UpdateAssignmentRequest,
+  AssignmentStatusUpdate,
+  InstructorAssignmentsQuery,
+  InstructorAssignmentsResponse,
+  InstructorAssignmentResponse,
+  AssignmentSubmissionsQuery,
+  AssignmentSubmissionsResponse,
+  SubmissionDetailResponse,
+  // 채점 관련 타입 추가
+  GradeSubmissionRequest,
+  GradeSubmissionResponse,
+  SubmissionForGrading,
+  SubmissionsForGradingResponse,
+  SubmissionParams,
+  Pagination,
 } from '../backend/schema';
 
 // 백엔드 스키마 재노출
@@ -17,4 +34,21 @@ export {
   UpdateSubmissionRequestSchema,
   SubmissionResponseSchema,
   AssignmentDetailResponseSchema,
+  // 강사용 스키마 추가
+  CreateAssignmentRequestSchema,
+  UpdateAssignmentRequestSchema,
+  AssignmentStatusUpdateSchema,
+  InstructorAssignmentsQuerySchema,
+  InstructorAssignmentsResponseSchema,
+  InstructorAssignmentResponseSchema,
+  AssignmentSubmissionsQuerySchema,
+  AssignmentSubmissionsResponseSchema,
+  SubmissionDetailResponseSchema,
+  // 채점 관련 스키마 추가
+  GradeSubmissionRequestSchema,
+  GradeSubmissionResponseSchema,
+  SubmissionForGradingSchema,
+  SubmissionsForGradingResponseSchema,
+  SubmissionParamsSchema,
+  PaginationSchema,
 } from '../backend/schema';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { apiClient, extractApiErrorMessage } from '@/lib/remote/api-client';
 import { CoursesResponseSchema, type CoursesQueryParams } from '../lib/dto';
 
@@ -68,7 +68,7 @@ export const useCoursesQuery = (params: CoursesQueryParams = {}) => {
 export const useInfiniteCoursesQuery = (
   baseParams: Omit<CoursesQueryParams, 'page'> = {}
 ) => {
-  const { useInfiniteQuery } = require('@tanstack/react-query');
+  // useInfiniteQuery는 이미 상단에서 import됨
   
   return useInfiniteQuery({
     queryKey: ['courses', 'infinite', baseParams],

@@ -101,10 +101,28 @@ export default function DashboardPage({ params }: DashboardPageProps) {
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
       <header className="mb-8">
-        <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
-        <p className="text-slate-600 mt-2">
-          {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold text-slate-900">대시보드</h1>
+            <p className="text-slate-600 mt-2">
+              {user?.email ?? "알 수 없는 사용자"} 님, 환영합니다.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push('/courses')}
+              className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              코스 탐색
+            </button>
+            <button
+              onClick={() => router.push('/grades')}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              내 성적
+            </button>
+          </div>
+        </div>
       </header>
 
       <div className="space-y-8">
